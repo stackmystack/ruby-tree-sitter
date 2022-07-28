@@ -1,4 +1,5 @@
 #include "tree_sitter.h"
+#include "tree_sitter/api.h"
 
 extern VALUE mTreeSitter;
 
@@ -10,7 +11,10 @@ typedef struct {
 } parser_t;
 
 static void parser_free(void *ptr) {
-  ts_parser_delete(((parser_t *)ptr)->data);
+  TSParser *parser = ((parser_t *)ptr)->data;
+  if (parser) {
+    ts_parser_delete(parser);
+  }
   xfree(ptr);
 }
 
