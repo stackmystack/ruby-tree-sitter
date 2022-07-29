@@ -5,7 +5,88 @@ extern VALUE mTreeSitter;
 
 VALUE cNode;
 
-DATA_WRAP(Node, node)
+typedef struct {
+  TSNode data;
+  /*
+   * Consider the following: You have an array `arr` containing a node, and
+   * you call `arr.non_existing_method`. This should raise an exception and
+   * it does.
+   *
+   * The exception message will call the array's `inspect`, and
+   * subsequently all its children's `inspect`.
+   *
+   * When the underlying `TSTree*` is still in memory, as in in serial tests,
+   * then calling `ts_node_string`, through `inspect`, is safe because the
+   * message will be shown immediately, therefore `inspect` will be evaluated
+   * before `GC`ing the `Tree` object.
+   *
+   * However, when running tests in parallel, using `minitest_parallel_fork`
+   * for example, the exception message is not evaluated directly, and kept
+   * till the end of the test run. When the time comes to show the error
+   * message, the `Tree` object we used to extract the `Node` would have been
+   * `GC`ed already, so calling `ts_node_string` at this point will cause a
+   * `SEGFAULT`.
+   *
+   * Therefore, we have to cache calls to `ts_node_string`.
+   */
+  VALUE sexp;
+} node_t;
+
+DATA_FREE(node)
+DATA_MEMSIZE(node)
+
+static void node_mark(void *ptr) {
+  node_t *node = (node_t *)ptr;
+  rb_gc_mark_movable(node->sexp);
+}
+
+static void node_compact(void *ptr) {
+  node_t *node = (node_t *)ptr;
+  node->sexp = rb_gc_location(node->sexp);
+}
+
+const rb_data_type_t node_data_type = {
+    .wrap_struct_name = "node",
+    .function =
+        {
+            .dmark = node_mark,
+            .dfree = node_free,
+            .dsize = node_memsize,
+            .dcompact = node_compact,
+        },
+    .flags = RUBY_TYPED_FREE_IMMEDIATELY,
+};
+
+DATA_ALLOCATE(node)
+DATA_UNWRAP(node)
+
+static VALUE node_string_value(TSNode self) {
+  char *str = ts_node_string(self);
+  VALUE res = safe_str(str);
+  free(str);
+  return res;
+}
+
+VALUE new_node(const TSNode *node) {
+  if (node == NULL) {
+    return Qnil;
+  }
+  VALUE res = node_allocate(cNode);
+  node_t *type = unwrap(res);
+  type->data = *node;
+  type->sexp = node_string_value(type->data);
+  return res;
+}
+
+VALUE new_node_by_val(TSNode node) {
+  VALUE res = node_allocate(cNode);
+  node_t *type = unwrap(res);
+  type->data = node;
+  type->sexp = node_string_value(type->data);
+  return res;
+}
+
+DATA_FROM_VALUE(TSNode, node)
 
 static VALUE node_type(VALUE self) { return safe_str(ts_node_type(SELF)); }
 
@@ -27,14 +108,7 @@ static VALUE node_end_point(VALUE self) {
   return new_point_by_val(ts_node_end_point(SELF));
 }
 
-static VALUE node_string(VALUE self) {
-  char *str = ts_node_string(SELF);
-  VALUE res = safe_str(str);
-  if (str) {
-    free(str);
-  }
-  return res;
-}
+static VALUE node_string(VALUE self) { return unwrap(self)->sexp; }
 
 static VALUE node_is_null(VALUE self) {
   return ts_node_is_null(SELF) ? Qtrue : Qfalse;
