@@ -5,7 +5,66 @@ extern VALUE mTreeSitter;
 
 VALUE cNode;
 
-DATA_WRAP(Node, node)
+typedef struct {
+  TSNode data;
+  VALUE sexp;
+} node_t;
+
+DATA_FREE(node)
+DATA_MEMSIZE(node)
+
+static void node_mark(void *ptr) {
+  node_t *node = (node_t *)ptr;
+  rb_gc_mark_movable(node->sexp);
+}
+
+static void node_compact(void *ptr) {
+  node_t *node = (node_t *)ptr;
+  node->sexp = rb_gc_location(node->sexp);
+}
+
+const rb_data_type_t node_data_type = {
+    .wrap_struct_name = "node",
+    .function =
+        {
+            .dmark = node_mark,
+            .dfree = node_free,
+            .dsize = node_memsize,
+            .dcompact = node_compact,
+        },
+    .flags = RUBY_TYPED_FREE_IMMEDIATELY,
+};
+
+DATA_ALLOCATE(node)
+DATA_UNWRAP(node)
+
+static VALUE node_string_value(TSNode self) {
+  char *str = ts_node_string(self);
+  VALUE res = safe_str(str);
+  free(str);
+  return res;
+}
+
+VALUE new_node(const TSNode *node) {
+  if (node == NULL) {
+    return Qnil;
+  }
+  VALUE res = node_allocate(cNode);
+  node_t *type = unwrap(res);
+  type->data = *node;
+  type->sexp = node_string_value(type->data);
+  return res;
+}
+
+VALUE new_node_by_val(TSNode node) {
+  VALUE res = node_allocate(cNode);
+  node_t *type = unwrap(res);
+  type->data = node;
+  type->sexp = node_string_value(type->data);
+  return res;
+}
+
+DATA_FROM_VALUE(TSNode, node)
 
 static VALUE node_type(VALUE self) { return safe_str(ts_node_type(SELF)); }
 
@@ -27,14 +86,7 @@ static VALUE node_end_point(VALUE self) {
   return new_point_by_val(ts_node_end_point(SELF));
 }
 
-static VALUE node_string(VALUE self) {
-  char *str = ts_node_string(SELF);
-  VALUE res = safe_str(str);
-  if (str) {
-    free(str);
-  }
-  return res;
-}
+static VALUE node_string(VALUE self) { return unwrap(self)->sexp; }
 
 static VALUE node_is_null(VALUE self) {
   return ts_node_is_null(SELF) ? Qtrue : Qfalse;
