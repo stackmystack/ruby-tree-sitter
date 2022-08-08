@@ -34,32 +34,48 @@ cross_platforms = [
   'arm64-darwin',
 ].freeze
 
-ENV['RUBY_CC_VERSION'] = cross_rubies.join(':') if !ENV['RUBY_CC_VERSION']
+ENV['RUBY_CC_VERSION'] = cross_rubies.join(':')
+
+Gem::PackageTask.new(gemspec).define #packaged_tarball version of the gem for platform=ruby
+task 'package' => cross_platforms.map { |p| "gem:#{p}" } # "package" task for all the native platforms
+
 Rake::ExtensionTask.new('tree_sitter', gemspec) do |r|
   r.lib_dir = 'lib/tree_sitter'
-    require "rake_compiler_dock"
-    r.cross_compile = true
-    r.cross_platform = cross_platforms
-    r.cross_compiling do |spec|
-      spec.files.reject! { |file| /(\.gz)$|(\.zip)$|(\.tar)$/ =~ File.basename(file) }
+  require 'rake_compiler_dock'
+  r.cross_compile = true
+  r.cross_platform = cross_platforms
+  r.cross_config_options << '--disable-sys-libs' # so extconf.rb knows we're cross-compiling
+  r.cross_compiling do |spec|
+    spec.files.reject! { |file| /(\.gz)$|(\.zip)$|(\.tar)$/ =~ File.basename(file) }
+  end
+end
+
+namespace 'gem' do
+  cross_platforms.each do |platform|
+    desc "build native gem for #{platform}"
+    task platform do
+      RakeCompilerDock.sh(<<~EOF, platform: platform)
+        gem install bundler --no-document &&
+        bundle &&
+        bundle exec rake gem:#{platform}:buildit
+      EOF
     end
-end
 
-Gem::PackageTask.new(gemspec) do |pkg|
-end
-
-desc 'Build native gems'
-task 'gem:native' do
-  cross_platforms.each do |plat|
-    RakeCompilerDock.sh "gem update --system --no-document && bundle && bundle exec rake clean && bundle exec rake native:#{plat} gem", platform: plat
+    namespace platform do
+      # this runs in the rake-compiler-dock docker container
+      task 'buildit' do
+        # use Task#invoke because the pkg/*gem task is defined at runtime
+        Rake::Task["native:#{platform}"].invoke
+        Rake::Task["pkg/#{gemspec.full_name}-#{Gem::Platform.new(platform)}.gem"].invoke
+      end
+    end
   end
+
+  desc 'build native gem for all platforms'
+  multitask 'all' => [cross_platforms, 'gem'].flatten
 end
 
-cross_platforms.each do |plat|
-  task "gem:#{plat}" do
-    RakeCompilerDock.sh "gem update --system --no-document && bundle && bundle exec rake clean && bundle exec rake native:#{plat} gem", platform: plat
-  end
-end
+Rake::Task['package'].prerequisites.prepend('compile')
 
 task :clean do
   require 'fileutils'
