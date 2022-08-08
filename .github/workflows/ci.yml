@@ -3,7 +3,7 @@ name: ci
 on: [push, pull_request]
 
 jobs:
-  native-gems:
+  Test:
     strategy:
       fail-fast: false
       matrix:
@@ -35,10 +35,31 @@ jobs:
       - name: test
         run: |
           bundle exec rake test
-      - name: package native gem
+
+  Package:
+    name: 'Package gems for release'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: setup ruby 3.1
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: 3.1
+      - name: bundle install
         run: |
-          rake native gem
-          for file in pkg/*.gem; do mv $file ${file%.*}-mri-${{ matrix.ruby }}.gem; done;
+          bundle install
+      - name: Package install-only gem
+        run: |
+          bundle exec rake gem
+      - name: Package for aarch64-linux
+        run: |
+          bundle exec rake gem:aarch64-linux
+      - name: Package for x86-linux
+        run: |
+          bundle exec rake gem:x86-linux
+      - name: Package for x86_64-linux
+        run: |
+          bundle exec rake gem:x86_64-linux
       - name: release
         uses: softprops/action-gh-release@v1
         with:
@@ -49,36 +70,3 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # - We need this seperate step for now to avoid duplicate uploads on release
-  # - We're not testing here also because it's been taken care of in the previous
-  #   step
-  install-only-gem:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: setup ruby
-        uses: ruby/setup-ruby@v1
-        with:
-          ruby-version: 3.1
-      - name: build and install tree-sitter
-        run: |
-          git clone https://github.com/tree-sitter/tree-sitter
-          cd tree-sitter
-          make
-          sudo make install
-          sudo ldconfig -v
-      - name: bundle install
-        run: |
-          bundle install
-      - name: package native gem
-        run: |
-          rake gem
-      - name: release
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: ${{ github.ref }}-${{ steps.vars.outputs.sha_short }}
-          draft: true
-          files: |
-            ./pkg/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
