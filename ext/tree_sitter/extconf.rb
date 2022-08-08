@@ -22,6 +22,18 @@ end
 #                                    #
 #          Downloaded libs           #
 # ################################## #
+cross_rubies = %w[3.1.0 3.0.0 2.7.0 2.6.0]
+# cross_platforms = %w[
+#   aarch64-linux
+#   arm-linux
+#   arm64-darwin
+#   x64-mingw-ucrt
+#   x64-mingw32
+#   x86-linux
+#   x86_64-darwin
+#   x86_64-linux
+# ]
+ENV['RUBY_CC_VERSION'] = cross_rubies.join(':')
 
 dir_include, dir_lib =
   if system_tree_sitter?
