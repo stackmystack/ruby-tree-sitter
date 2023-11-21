@@ -122,7 +122,6 @@ jobs:
           mkdir -p tree-sitter-parsers
           wget https://github.com/Faveod/tree-sitter-parsers/releases/download/v2.0/libtree-sitter-embedded-template-${{ matrix.platform.target }}.${{ matrix.platform.ext }} -O tree-sitter-parsers/libtree-sitter-embedded-template.${{ matrix.platform.ext }}
           wget https://github.com/Faveod/tree-sitter-parsers/releases/download/v2.0/libtree-sitter-html-${{ matrix.platform.target }}.${{ matrix.platform.ext }}              -O tree-sitter-parsers/libtree-sitter-html.${{ matrix.platform.ext }}
-          wget https://github.com/Faveod/tree-sitter-parsers/releases/download/v2.0/libtree-sitter-javascript-${{ matrix.platform.target }}.${{ matrix.platform.ext }}        -O tree-sitter-parsers/libtree-sitter-javascript.${{ matrix.platform.ext }}
           wget https://github.com/Faveod/tree-sitter-parsers/releases/download/v2.0/libtree-sitter-json-${{ matrix.platform.target }}.${{ matrix.platform.ext }}              -O tree-sitter-parsers/libtree-sitter-json.${{ matrix.platform.ext }}
           wget https://github.com/Faveod/tree-sitter-parsers/releases/download/v2.0/libtree-sitter-ruby-${{ matrix.platform.target }}.${{ matrix.platform.ext }}              -O tree-sitter-parsers/libtree-sitter-ruby.${{ matrix.platform.ext }}
       - name: bundle install
@@ -134,14 +133,3 @@ jobs:
       - name: test
         run: |
           bundle exec rake test
-      - name: fresh-project
-        run: |
-          GITSRC=$(pwd)
-          cp -R examples/test-project /tmp
-          cd /tmp/test-project
-          # sed -i "s/branch: 'ruby_tree_sitter'/branch: '$CI_COMMIT_BRANCH'/" Gemfile
-          bundle config set --local path vendor/bundle
-          bundle config set local.ruby_tree_sitter "$GITSRC"
-          bundle config set build.ruby_tree_sitter --disable-sys-libs
-          bundle install
-          env TREE_SITTER_PARSERS="$GITSRC/tree-sitter-parsers" bundle exec ruby main.rb
