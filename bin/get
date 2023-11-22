@@ -46,6 +46,8 @@ else
   cli="tree-sitter"
 fi
 
+echo "PATH=$PATH"
+ls -lah .
 ls "$lang"
 
 if test -d "$lang/src"; then
