@@ -40,15 +40,11 @@ then
   wget "https://github.com/tree-sitter/tree-sitter/releases/download/v$tstag/$gz"
   gunzip "$gz"
   chmod +x "$cli"
-  export PATH=$PWD:$PATH
+  ls -lah .
 else
   # use system-wide tree-sitter-cli
   cli="tree-sitter"
 fi
-
-echo "PATH=$PATH"
-ls -lah .
-ls "$lang"
 
 if test -d "$lang/src"; then
     cd "$lang/src"
