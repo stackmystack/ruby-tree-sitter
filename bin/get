@@ -52,10 +52,11 @@ ls "$lang"
 
 if test -d "$lang/src"; then
     cd "$lang/src"
+    ../../$cli generate
 elif test -d "$lang/$lang/src"; then # This is the case of typescript parser.
     cd "$lang/$lang/src"
+    ../../../$cli generate
 fi
-$cli generate
 
 LDFLAGS='-lstdc++'
 CPPFLAGS='-I/usr/include -I/usr/local/include -I/opt/include -I/opt/local/include'
