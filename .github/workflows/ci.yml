@@ -124,6 +124,7 @@ jobs:
           wget https://github.com/stackmystack/tree-sitter-parsers/releases/download/v2.1/libtree-sitter-html-${{ matrix.platform.target }}.${{ matrix.platform.ext }}              -O tree-sitter-parsers/libtree-sitter-html.${{ matrix.platform.ext }}
           wget https://github.com/stackmystack/tree-sitter-parsers/releases/download/v2.1/libtree-sitter-json-${{ matrix.platform.target }}.${{ matrix.platform.ext }}              -O tree-sitter-parsers/libtree-sitter-json.${{ matrix.platform.ext }}
           wget https://github.com/stackmystack/tree-sitter-parsers/releases/download/v2.1/libtree-sitter-ruby-${{ matrix.platform.target }}.${{ matrix.platform.ext }}              -O tree-sitter-parsers/libtree-sitter-ruby.${{ matrix.platform.ext }}
+          wget https://github.com/stackmystack/tree-sitter-parsers/releases/download/v2.1/libtree-sitter-javascript-${{ matrix.platform.target }}.${{ matrix.platform.ext }}        -O tree-sitter-parsers/libtree-sitter-javascript.${{ matrix.platform.ext }}
       - name: bundle install
         run: |
           bundle install
