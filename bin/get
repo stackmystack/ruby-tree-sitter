@@ -16,6 +16,7 @@ case $OSTYPE in
       ;;
 esac
 
+tstag="0.20.8"
 lang=$1
 local=tree-sitter-parsers
 repo=tree-sitter-$lang
