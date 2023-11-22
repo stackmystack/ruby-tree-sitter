@@ -39,7 +39,7 @@ module TreeSitter
       lib = Pathname.new("tree-sitter-parsers/#{name}/#{so}").expand_path
     end
 
-    raise "could not find a library with the symbol #{name}" if lib.nil?
+    raise "could not find a library with the symbol #{name}" if lib.nil? || !lib.exist?
 
     TreeSitter::Language.load(symbol, lib)
   end
