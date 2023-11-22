@@ -41,6 +41,7 @@ then
   gunzip "$gz"
   chmod +x "$cli"
   cli="$(pwd)/$cli"
+  ls -lah $cli
 else
   # use system-wide tree-sitter-cli
   cli="tree-sitter"
