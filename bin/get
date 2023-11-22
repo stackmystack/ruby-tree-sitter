@@ -40,8 +40,7 @@ then
   wget "https://github.com/tree-sitter/tree-sitter/releases/download/v$tstag/$gz"
   gunzip "$gz"
   chmod +x "$cli"
-  cli="$(pwd)/$cli"
-  ls -lah $cli
+  export PATH=$PWD:$PATH
 else
   # use system-wide tree-sitter-cli
   cli="tree-sitter"
