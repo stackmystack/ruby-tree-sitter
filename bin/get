@@ -31,27 +31,28 @@ if [ ! -d "$lang" ]; then
   cd ..
 fi
 
-# Get tree-sitter-cli
-
-cli="tree-sitter-$PLATFORM"
-gz="$cli.gz"
-
-if [ ! -f "$cli" ]
+if [ -n "$PLATFORM" ]
 then
+  # Get tree-sitter-cli
+  cli="tree-sitter-$PLATFORM"
+  gz="$cli.gz"
   wget "https://github.com/tree-sitter/tree-sitter/releases/download/v$tstag/$gz"
   gunzip "$gz"
   chmod +x "$cli"
+  cli="$(pwd)/$cli"
+else
+  # use system-wide tree-sitter-cli
+  cli="tree-sitter"
 fi
 
 ls "$lang"
 
 if test -d "$lang/src"; then
     cd "$lang/src"
-    ../../$cli generate
 elif test -d "$lang/$lang/src"; then # This is the case of typescript parser.
     cd "$lang/$lang/src"
-    ../../../$cli generate
 fi
+$cli generate
 
 LDFLAGS='-lstdc++'
 CPPFLAGS='-I/usr/include -I/usr/local/include -I/opt/include -I/opt/local/include'
