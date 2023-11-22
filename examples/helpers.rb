@@ -34,7 +34,8 @@ module TreeSitter
     # Download if we still didn't find.
     # NOTE: we only allow .so download to tree-sitter-parsers locally.
     if lib.nil?
-      raise "could not load/download #{name} from #{dylib}" if system("bin/get #{name}").nil?
+      system("bin/get #{name}")
+      raise "could not load/download #{name}" if !$?.success?
 
       lib = Pathname.new("tree-sitter-parsers/#{name}/#{so}").expand_path
     end
