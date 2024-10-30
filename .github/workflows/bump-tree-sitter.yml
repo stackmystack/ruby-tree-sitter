@@ -24,11 +24,22 @@ jobs:
         run: |
           LATEST_RELEASE=$(curl -s https://api.github.com/repos/tree-sitter/tree-sitter/releases/latest | jq -r .tag_name | sed 's/^v//')
           echo "::set-output name=latest_release::$LATEST_RELEASE"
+          echo "::set-output name=latest_release_branch::tree-sitter-bump-to-$LATEST_RELEASE"
+
+      - name: Check if branch exists
+        id: check_branch
+        run: |
+          if git show-ref --verify --quiet refs/heads/${{ steps.get_latest_release.outputs.latest_release_branch }}; then
+            echo "::set-output name=latest_release_branch_exists::true"
+          else
+            echo "::set-output name=latest_release_branch_exists::false"
+          fi
 
       - name: Compare release versions
         id: check_versions
         run: |
-          if [ "${{ steps.get_previous_release.outputs.previous_release }}" != "${{ steps.get_latest_release.outputs.latest_release }}" ]; then
+          if [ "${{ steps.get_previous_release.outputs.previous_release }}" != "${{ steps.get_latest_release.outputs.latest_release }}" ] \
+            && [ "${{ steps.get_latest_release_branch_exists.outputs.latest_release_branch_exists }}" != 'true' ] ; then
             echo "New release found"
             echo "::set-output name=version_changed::true"
           else
@@ -50,7 +61,7 @@ jobs:
           committer: github-actions[bot] <github-actions[bot]@github.com>
           author: ${{ github.actor }} <${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com>
           signoff: false
-          branch: tree-sitter-bump-to-${{ steps.get_latest_release.outputs.latest_release }}
+          branch: ${{ steps.get_latest_release_branch.outputs.latest_release_branch }}
           delete-branch: true
           title: "Bump tree-sitter to ${{ steps.get_latest_release.outputs.latest_release }}"
           draft: false
