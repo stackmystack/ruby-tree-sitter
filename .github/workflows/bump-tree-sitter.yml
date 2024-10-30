@@ -13,55 +13,59 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v3
 
+      - name: Fetch all branch names (no history)
+        run: git fetch --depth=1 origin +refs/heads/*:refs/remotes/origin/*
+
       - name: Get the previous release tag from local project
-        id: get_previous_release
+        id: previous_release
         run: |
           PREVIOUS_RELEASE=$(ruby -r ./lib/tree_sitter/version.rb -e 'puts TreeSitter::TREESITTER_VERSION')
-          echo "::set-output name=previous_release::$PREVIOUS_RELEASE"
+          echo "version=$PREVIOUS_RELEASE" >> "$GITHUB_OUTPUT"
 
       - name: Get the latest release tag from the external repo
-        id: get_latest_release
+        id: latest_release
         run: |
           LATEST_RELEASE=$(curl -s https://api.github.com/repos/tree-sitter/tree-sitter/releases/latest | jq -r .tag_name | sed 's/^v//')
-          echo "::set-output name=latest_release::$LATEST_RELEASE"
-          echo "::set-output name=latest_release_branch::tree-sitter-bump-to-$LATEST_RELEASE"
+          echo "version=$LATEST_RELEASE" >> "$GITHUB_OUTPUT"
+          echo "branch=tree-sitter-bump-to-$LATEST_RELEASE" >> "$GITHUB_OUTPUT"
 
       - name: Check if branch exists
-        id: check_branch
+        id: latest_release_branch
         run: |
-          if git show-ref --verify --quiet refs/heads/${{ steps.get_latest_release.outputs.latest_release_branch }}; then
-            echo "::set-output name=latest_release_branch_exists::true"
+          git pull
+          if git show-ref --verify --quiet refs/heads/${{ steps.latest_release.outputs.branch }}; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::set-output name=latest_release_branch_exists::false"
+            echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Compare release versions
         id: check_versions
         run: |
-          if [ "${{ steps.get_previous_release.outputs.previous_release }}" != "${{ steps.get_latest_release.outputs.latest_release }}" ] \
-            && [ "${{ steps.get_latest_release_branch_exists.outputs.latest_release_branch_exists }}" != 'true' ] ; then
+          if [ "${{ steps.previous_release.outputs.version }}" != "${{ steps.latest_release.outputs.version }}" ] \
+            && [ "${{ steps.latest_release_branch.outputs.exists }}" != 'true' ] ; then
             echo "New release found"
-            echo "::set-output name=version_changed::true"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
           else
             echo "No new release"
-            echo "::set-output name=version_changed::false"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Update version if changed
-        if: steps.check_versions.outputs.version_changed == 'true'
+        if: steps.check_versions.outputs.changed == 'true'
         run: |
-          sed -i "s/^\([[:space:]]*\)TREESITTER_VERSION = '.*'/\1TREESITTER_VERSION = '${{ steps.get_latest_release.outputs.latest_release }}'/"  lib/tree_sitter/version.rb
+          sed -i "s/^\([[:space:]]*\)TREESITTER_VERSION = '.*'/\1TREESITTER_VERSION = '${{ steps.latest_release.outputs.version }}'/"  lib/tree_sitter/version.rb
 
       - name: Create pull request
-        if: steps.check_versions.outputs.version_changed == 'true'
+        if: steps.check_versions.outputs.changed == 'true'
         uses: peter-evans/create-pull-request@v5
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "tree-sitter: bump to ${{ steps.get_latest_release.outputs.latest_release }}"
+          commit-message: "tree-sitter: bump to ${{ steps.latest_release.outputs.version }}"
           committer: github-actions[bot] <github-actions[bot]@github.com>
           author: ${{ github.actor }} <${{ github.actor_id }}+${{ github.actor }}@users.noreply.github.com>
           signoff: false
-          branch: ${{ steps.get_latest_release_branch.outputs.latest_release_branch }}
+          branch: ${{ steps.latest_release.outputs.branch }}
           delete-branch: true
-          title: "Bump tree-sitter to ${{ steps.get_latest_release.outputs.latest_release }}"
+          title: "Bump tree-sitter to ${{ steps.latest_release.outputs.version }}"
           draft: false
