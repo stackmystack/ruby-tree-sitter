@@ -12,12 +12,6 @@ require 'ruby_memcheck'
 # NOTE: bundler is segfaulting on:
 #     x86-linux-gnu
 PLATFORMS = %w[
-  aarch64-linux-gnu
-  aarch64-linux-musl
-  arm-linux-gnu
-  arm-linux-musl
-  arm64-darwin
-  x86-linux-musl
   x86_64-darwin
   x86_64-linux-gnu
   x86_64-linux-musl
