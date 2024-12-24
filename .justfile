@@ -47,7 +47,18 @@ gem-cross:
 [group('gem')]
 [group('test')]
 gem-cross-test:
-  bin/ci-push-gems && bin/ci-test-project
+  #!/usr/bin/env bash
+  set -euo pipefail
+  bin/ci-push-gems
+  # In order to prevent weird bundler errors comlaining that requested ruby
+  # version is >= 3.0 and < 3.3.dev, or anything similar, we will need to remove
+  # the lockfile, and allow bundler to recompute everything.
+  # As to why we're here, I think it's because we were bundling the previous gems,
+  # Gemfile.lock is sometimes correct, for the correct platform, and in other
+  # times it isn't. But who _really_ knows, I only observed this behavior the same
+  # day working on a different gem, and removing Gemfile.lock did it.
+  rm Gemfile.lock
+  bin/ci-test-project
 
 [group('lint')]
 lint:
