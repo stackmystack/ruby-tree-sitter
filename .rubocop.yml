@@ -34,7 +34,7 @@ Lint/InheritException:
   Enabled: false
 
 Metrics/AbcSize:
-  Max: 29
+  Max: 30
 
 Metrics/BlockLength:
   Exclude:
@@ -43,10 +43,16 @@ Metrics/BlockLength:
 Metrics/ClassLength:
   Enabled: false
 
+Metrics/CyclomaticComplexity:
+  Max: 20
+
 Metrics/MethodLength:
   Max: 29
   Exclude:
     - test/**/*
+
+Metrics/PerceivedComplexity:
+  Max: 20
 
 Security/Eval:
   Exclude:
@@ -58,6 +64,15 @@ Style/Alias:
 Style/AccessorGrouping:
   Enabled: false
 
+Style/BlockDelimiters:
+  Enabled: false
+
+Style/DoubleNegation:
+  Enabled: false
+
+Style/FormatString:
+  Enabled: false
+
 Style/GlobalVars:
   Exclude:
     - ext/tree_sitter/extconf.rb
@@ -66,6 +81,9 @@ Style/IfUnlessModifier:
 
 Style/Lambda:
   EnforcedStyle: literal
+
+Style/MultilineBlockChain:
+  Enabled: false
 
 Style/TrailingCommaInArrayLiteral:
   EnforcedStyleForMultiline: comma

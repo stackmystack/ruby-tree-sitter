@@ -6,7 +6,7 @@ $LOAD_PATH.unshift(lib) if !$LOAD_PATH.include?(lib)
 require 'tree_sitter/version'
 
 Gem::Specification.new do |spec|
-  spec.required_ruby_version = '>= 3.0'
+  spec.required_ruby_version = Gem::Requirement.new('>= 3.0.0')
 
   spec.authors       = ['Firas al-Khalil', 'Derek Stride']
   spec.email         = ['firasalkhalil@gmail.com', 'derek@stride.host']
@@ -27,8 +27,11 @@ Gem::Specification.new do |spec|
   spec.files         = %w[LICENSE README.md tree_sitter.gemspec]
   spec.files        += Dir.glob('ext/**/*.{c,h,rb}')
   spec.files        += Dir.glob('lib/**/*.rb')
+  spec.bindir        = 'exe'
+  spec.executables  << 'rbts' << 'print_matches'
   spec.require_paths = ['lib']
 
+  spec.add_dependency 'oppen', '0.9.8'
   spec.add_dependency 'sorbet-runtime'
   spec.add_dependency 'zeitwerk'
 end

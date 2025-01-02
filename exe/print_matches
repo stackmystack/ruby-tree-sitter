@@ -1,0 +1,20 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'bundler/setup'
+require 'tree_stand/cli'
+
+program = TreeStand::Cli::Options.new
+OptionParser.new do |parser|
+  program.define_options(parser)
+  parser.parse!(ARGV)
+end
+program.check!
+
+def main(program)
+  program.tree.query(program.query).each do |match|
+    pp match.transform_values(&:text)
+  end
+end
+
+main(program)

@@ -1,0 +1,83 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'bundler/setup'
+require 'tree_stand/cli'
+
+BANNER = <<~BANNER
+  Usage: rbts --source SOURCE --query QUERY --parser PARSER
+
+      Watches a source and a query file and prints the matches when one of the
+      files are updated. Uses entr, if available, otherwise watch(1) is used by
+      default or if --watch is specified.
+
+      Check out the tree-sitter repository & documentation for information on how
+      to write S-expression queries.
+
+          Repo: https://github.com/tree-sitter/tree-sitter
+          Docs: https://tree-sitter.github.io/tree-sitter/using-parsers/queries
+
+      Example:
+
+          rbts --source tmp/rbts/code.rb \\
+            --query tmp/rbts/query.scm \\
+            --parser tmp/rbts/ruby.so
+BANNER
+
+program = TreeStand::Cli::Options.new
+OptionParser.new do |parser|
+  parser.banner = BANNER
+  parser.separator('')
+  program.define_options(parser)
+  parser.separator('')
+  parser.on_tail(
+    '-w',
+    '--watch',
+    "use watch(1) to continuously print matches, by default entr is used if it's available",
+    TrueClass,
+  ) do |watch|
+    program.watch = watch
+  end
+
+  parser.parse!(ARGV)
+end
+program.check!
+
+def print_matches = File.join(__dir__, 'print_matches')
+
+# ls -1 SOURCE QUERY |
+#   entr -c exe/print_matches
+#     --source SOURCE
+#     --query QUERY
+#     --parser PARSER
+def entr_cmd(source, query, parser)
+  [
+    'ls', '-1', source, query, '|',
+    'entr', '-c',
+    print_matches,
+    '--source', source,
+    '--query', query,
+    '--parser', parser
+  ].join(' ')
+end
+
+# watch 'exe/print_matches --source SOURCE --query QUERY --parser PARSER'
+def watch_cmd(source, query, parser)
+  [
+    'watch',
+    "'#{print_matches} --source #{source} --query #{query} --parser #{parser}'",
+  ].join(' ')
+end
+
+def main(program)
+  cmd = if !program.watch && system('which', 'entr')
+    entr_cmd(program.source_file, program.query_file, program.parser_file)
+  else
+    watch_cmd(program.source_file, program.query_file, program.parser_file)
+  end
+
+  program.logger.debug("Running `#{cmd}`")
+  exec(cmd)
+end
+
+main(program)

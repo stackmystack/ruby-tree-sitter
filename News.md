@@ -2,6 +2,48 @@
 
 # [unreleaseed]
 
+- Use tree-sitter v0.24.5.
+- Added new `rbts` executable to aide with writing tree-sitter query's. It will watch a source & query file then print the match & capture nodes to the screen. See `rbts --help` for more details.
+- TreeSitter: better erorr message in `Node#[]`.
+- Cross-Compile:
+  - build native ruby 3.4 gems.
+  - restore cross-compilation tests.
+- TreeSitter|TreeStand: add `Node#sexpr`. It's a better alternative to
+  tree-sitter's native `ts_node_string` which can always be reached via
+  `Node#to_s` or `Node#to_string`. For instance, for the expression `1 + x * 3`,
+  `ts_node_string` always prints:
+  ```
+    (expression (sum left: (number) right: (product left: (variable) right: (number))))
+  ```
+  `Node#sexpr` is still capable of doing the same, but if we do
+  `node.sexpr(width: 40)` we get:
+  ```
+    (expression
+      (sum
+        left: (number)
+        (+)
+        right:
+          (product
+            left: (variable)
+            (*)
+          right: (number))))"
+  ```
+  We can even print the named leaf nodes:
+  ```
+    (expression           |
+      (sum                |
+        left:             |
+          (number)        | 1
+        (+)               | +
+        right:            |
+          (product        |
+            left:         |
+              (variable)  | x
+            (*)           | *
+            right:        |
+              (number)))) | 3
+  ```
+
 # v1.10.0 (10-12-2024)
 
 - Make `TreeSitter::TreeSitterError < Exception` instead of `StandardErorr`;
