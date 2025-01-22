@@ -2,6 +2,61 @@
 
 # [unreleaseed]
 
+# v1.12.0 (15-01-2025)
+
+- Fix Oppen version requirement in gemspec.
+- Use tree-sitter v0.24.7.
+
+# v1.11.1 (02-01-2025)
+
+- Fix:
+  - precompiled gem problem with ruby 3.3. See [rake-compiler-dock](https://github.com/rake-compiler/rake-compiler-dock/blob/3811c31917a9dcb9cb139c0841f420c82663ae89/History.md?plain=1#L35)
+  - tree-sitter version: we declared v0.24.6, but we were on v0.24.5!
+
+# v1.11.0 (02-01-2025)
+
+- Use tree-sitter v0.24.6.
+- Added new `rbts` executable to aide with writing tree-sitter query's. It will watch a source & query file then print the match & capture nodes to the screen. See `rbts --help` for more details.
+- TreeSitter: better erorr message in `Node#[]`.
+- Cross-Compile:
+  - build native ruby 3.4 gems.
+  - restore cross-compilation tests.
+- TreeSitter|TreeStand: add `Node#sexpr`. It's a better alternative to
+  tree-sitter's native `ts_node_string` which can always be reached via
+  `Node#to_s` or `Node#to_string`. For instance, for the expression `1 + x * 3`,
+  `ts_node_string` always prints:
+  ```
+    (expression (sum left: (number) right: (product left: (variable) right: (number))))
+  ```
+  `Node#sexpr` is still capable of doing the same, but if we do
+  `node.sexpr(width: 40)` we get:
+  ```
+    (expression
+      (sum
+        left: (number)
+        (+)
+        right:
+          (product
+            left: (variable)
+            (*)
+          right: (number))))"
+  ```
+  We can even print the named leaf nodes:
+  ```
+    (expression           |
+      (sum                |
+        left:             |
+          (number)        | 1
+        (+)               | +
+        right:            |
+          (product        |
+            left:         |
+              (variable)  | x
+            (*)           | *
+            right:        |
+              (number)))) | 3
+  ```
+
 # v1.10.0 (10-12-2024)
 
 - Make `TreeSitter::TreeSitterError < Exception` instead of `StandardErorr`;

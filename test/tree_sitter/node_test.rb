@@ -396,4 +396,138 @@ describe 'fetch' do
     assert_equal [@child.parameters, nil, @child.name, nil], @child.fetch(:parameters, :fake, :name, :fake)
     assert_equal [@child.parameters, nil, @child.name, nil], @child.fetch(:parameters, :fake, :name, :whatever)
   end
+
+  describe 'sexpr' do
+    it 'should print a proper sexpr when vertical is nil' do
+      assert_equal <<~SEXPR.chomp, root.sexpr
+        (program
+          (method
+            (def)
+            name: (identifier)
+            parameters: (method_parameters (() (identifier) (,) (identifier) ()))
+            body:
+              (body_statement
+                (assignment left: (identifier) (=) right: (binary left: (identifier) operator: (*) right: (identifier)))
+                (call
+                  method: (identifier)
+                  arguments: (argument_list (call receiver: (identifier) operator: (.) method: (identifier))))
+                (return (return) (argument_list (identifier))))
+            (end)))
+      SEXPR
+    end
+
+    it 'should print a proper sexpr when vertical is false' do
+      assert_equal <<~SEXPR.chomp, root.sexpr(vertical: false)
+        (program
+          (method
+            (def)
+            name: (identifier)
+            parameters: (method_parameters (() (identifier) (,) (identifier) ()))
+            body:
+              (body_statement
+                (assignment left: (identifier) (=) right: (binary left: (identifier) operator: (*) right: (identifier)))
+                (call
+                  method: (identifier)
+                  arguments: (argument_list (call receiver: (identifier) operator: (.) method: (identifier))))
+                (return (return) (argument_list (identifier))))
+            (end)))
+      SEXPR
+    end
+
+    it 'should print a sexpr with sources on the margins' do
+      assert_equal <<~SEXPR.chomp, root.sexpr(source: program)
+        (program                          |
+          (method                         |
+            (def)                         | def
+            name:                         |
+              (identifier)                | mul
+            parameters:                   |
+              (method_parameters          |
+                (()                       | (
+                (identifier)              | a
+                (,)                       | ,
+                (identifier)              | b
+                ()))                      | )
+            body:                         |
+              (body_statement             |
+                (assignment               |
+                  left:                   |
+                    (identifier)          | res
+                  (=)                     | =
+                  right:                  |
+                    (binary               |
+                      left:               |
+                        (identifier)      | a
+                      operator:           |
+                        (*)               | *
+                      right:              |
+                        (identifier)))    | b
+                (call                     |
+                  method:                 |
+                    (identifier)          | puts
+                  arguments:              |
+                    (argument_list        |
+                      (call               |
+                        receiver:         |
+                          (identifier)    | res
+                        operator:         |
+                          (.)             | .
+                        method:           |
+                          (identifier)))) | inspect
+                (return                   |
+                  (return)                | return
+                  (argument_list          |
+                    (identifier))))       | res
+            (end)))                       | end
+      SEXPR
+    end
+
+    it 'should print a vertical sexpr without sources' do
+      assert_equal <<~SEXPR.chomp, root.sexpr(vertical: true)
+        (program
+          (method
+            (def)
+            name:
+              (identifier)
+            parameters:
+              (method_parameters
+                (()
+                (identifier)
+                (,)
+                (identifier)
+                ()))
+            body:
+              (body_statement
+                (assignment
+                  left:
+                    (identifier)
+                  (=)
+                  right:
+                    (binary
+                      left:
+                        (identifier)
+                      operator:
+                        (*)
+                      right:
+                        (identifier)))
+                (call
+                  method:
+                    (identifier)
+                  arguments:
+                    (argument_list
+                      (call
+                        receiver:
+                          (identifier)
+                        operator:
+                          (.)
+                        method:
+                          (identifier))))
+                (return
+                  (return)
+                  (argument_list
+                    (identifier))))
+            (end)))
+      SEXPR
+    end
+  end
 end

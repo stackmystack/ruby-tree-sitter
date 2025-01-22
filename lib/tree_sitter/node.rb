@@ -56,7 +56,7 @@ module TreeSitter
         case k = keys.first
         when Integer then named_child(k)
         when String, Symbol
-          raise IndexError, "Cannot find field #{k}. Available: #{fields}" unless fields.include?(k.to_sym)
+          raise IndexError, "Cannot find field #{k.to_sym}. Available: #{fields.to_a}" unless fields.include?(k.to_sym)
 
           child_by_field_name(k.to_s)
         else raise ArgumentError, <<~ERR
@@ -162,6 +162,95 @@ module TreeSitter
         break if key_set.empty?
       end
       fields.values_at(*keys)
+    end
+
+    # Regex for line annotation extraction from sexpr with source.
+    #
+    # @!visibility private
+    LINE_ANNOTATION = /\0\{(.*?)\0\}/
+
+    # Pretty-prints the node's sexp.
+    #
+    # The default call to {to_s} or {to_string} calls tree-sitter's
+    # `ts_node_string`. It's displayed on a single line, so reading a rich node
+    # becomes tiresome.
+    #
+    # This provides a better sexpr where you can control the "screen" width to
+    # decide when to break.
+    #
+    # @param indent   [Integer]
+    #   indentation for nested nodes.
+    # @param width    [Integer]
+    #   the screen's width.
+    # @param source   [Nil|String]
+    #   display source on the margin if not `nil`.
+    # @param vertical [Nil|Boolean]
+    #   fit as much sexpr on a single line if `false`, else, go vertical.
+    #   This is always `true` if `source` is not `nil`.
+    #
+    # @return [String] the pretty-printed sexpr.
+    def sexpr(indent: 2, width: 120, source: nil, vertical: nil)
+      res =
+        sexpr_recur(
+          indent: indent,
+          width: width,
+          source: source,
+          vertical: !source.nil? || !!vertical,
+        ).output
+      return res if source.nil?
+
+      max_width = 0
+      res
+        .lines
+        .map { |line|
+          extracted = line.scan(LINE_ANNOTATION).flatten.first || ''
+          base = line.gsub(LINE_ANNOTATION, '').rstrip
+          max_width = [max_width, base.length].max
+          [base, extracted]
+        }
+        .map { |base, extracted|
+          ("%-#{max_width}s | %s" % [base, extracted]).rstrip
+        }
+        .join("\n")
+    end
+
+    # Helper function for {sexpr}.
+    #
+    # @!visibility private
+    def sexpr_recur(indent: 2, width: 120, out: nil, source: nil, vertical: false)
+      out ||= Oppen::Wadler.new(width: width)
+      out.group(indent) {
+        out.text "(#{type}"
+        if source.is_a?(String) && child_count.zero?
+          out.text "\0{#{source.byteslice(start_byte...end_byte)}\0}", width: 0
+        end
+        brk(out, vertical) if child_count.positive?
+        each.with_index do |child, index|
+          if field_name = field_name_for_child(index)
+            out.text "#{field_name}:"
+            out.group(indent) {
+              brk(out, vertical)
+              child.sexpr_recur(indent: indent, width: width, out: out, vertical: vertical, source: source)
+            }
+          else
+            child.sexpr_recur(indent: indent, width: width, out: out, vertical: vertical, source: source)
+          end
+          brk(out, vertical) if index < child_count - 1
+        end
+        out.text ')'
+      }
+      out
+    end
+
+    # Break helper
+    #
+    # !@visibility private
+    def brk(out, vertical)
+      if vertical
+        out.break
+      else
+        out.breakable
+      end
     end
   end
 end

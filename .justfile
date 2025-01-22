@@ -3,7 +3,7 @@ LIB := 'lib'
 LIB_FILE := LIB / GEM_NAME + '.rb'
 VERSION_FILE := LIB / GEM_NAME / 'version.rb'
 VERSION := shell("ruby -r ./" + VERSION_FILE  + " -e 'puts TreeSitter::VERSION'")
-TS_PARSER_VERSION := '4.3'
+TS_PARSER_VERSION := '4.8'
 
 default: check
 
@@ -13,6 +13,7 @@ check: compile test lint doc-stats tc
 [group('compile')]
 clean:
   bundle exec rake clean
+  rm -rf lib/tree_sitter/tree_sitter.{bundle,so}
 
 [group('compile')]
 compile *args:
@@ -42,6 +43,7 @@ gem-native:
 
 [group('gem')]
 gem-cross:
+  rm -rf Gemfile.lock
   bundle exec rake gem:cross
 
 [group('gem')]
