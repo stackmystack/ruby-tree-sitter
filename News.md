@@ -2,6 +2,10 @@
 
 # [unreleaseed]
 
+# v2.0.0 (22-01-2025)
+
+- Bump minimum supported Ruby version to 3.1.
+
 # v1.12.0 (15-01-2025)
 
 - Fix Oppen version requirement in gemspec.
