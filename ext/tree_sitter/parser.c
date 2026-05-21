@@ -6,7 +6,6 @@ VALUE cParser;
 
 typedef struct {
   TSParser *data;
-  size_t cancellation_flag;
   VALUE logger;
 } parser_t;
 
@@ -50,41 +49,6 @@ static VALUE parser_allocate(VALUE klass) {
   parser->data = ts_parser_new();
   parser->logger = Qnil;
   return res;
-}
-
-/**
- * Get the parser's current cancellation flag pointer.
- *
- * @return [Integer]
- *
- * @note DEPRECATED in tree-sitter 0.26+. This API was removed.
- *       Use TSParseOptions with progress_callback instead.
- */
-static VALUE parser_get_cancellation_flag(VALUE self) {
-  // tree-sitter 0.26+ removed cancellation_flag API
-  // Return the stored value for backward compatibility
-  return SIZET2NUM(unwrap(self)->cancellation_flag);
-}
-
-/**
- * Set the parser's current cancellation flag pointer.
- *
- * If a non-null pointer is assigned, then the parser will periodically read
- * from this pointer during parsing. If it reads a non-zero value, it will
- * halt early, returning +nil+.
- *
- * @see parse
- *
- * @note DEPRECATED in tree-sitter 0.26+. This API was removed.
- *       Use TSParseOptions with progress_callback instead.
- *
- * @return nil
- */
-static VALUE parser_set_cancellation_flag(VALUE self, VALUE flag) {
-  // tree-sitter 0.26+ removed cancellation_flag API
-  // Store the value for backward compatibility but it won't affect parsing
-  unwrap(self)->cancellation_flag = NUM2SIZET(flag);
-  return Qnil;
 }
 
 /**
@@ -227,10 +191,6 @@ static VALUE parser_set_logger(VALUE self, VALUE logger) {
  *    where the parser left out by calling {Parser#parse} again with the
  *    same arguments. Or you can start parsing from scratch by first calling
  *    {Parser#reset}.
- * 3. Parsing was cancelled using a cancellation flag that was set by an
- *    earlier call to {Parser#cancellation_flag=}. You can resume parsing
- *    from where the parser left out by calling {Parser#parse} again with
- *    the same arguments.
  *
  * @note this is curently incomplete, as the {Input} class is incomplete.
  *
@@ -352,7 +312,7 @@ static VALUE parser_print_dot_graphs(VALUE self, VALUE file) {
 /**
  * Instruct the parser to start the next parse from the beginning.
  *
- * If the parser previously failed because of a timeout or a cancellation, then
+ * If the parser previously failed because of a timeout, then
  * by default, it will resume where it left off on the next call to
  * {Parser#parse} or other parsing functions. If you don't want to resume,
  * and instead intend to use this parser to parse some other document, you must
@@ -371,10 +331,6 @@ void init_parser(void) {
   rb_define_alloc_func(cParser, parser_allocate);
 
   /* Class methods */
-  rb_define_method(cParser, "cancellation_flag", parser_get_cancellation_flag,
-                   0);
-  rb_define_method(cParser, "cancellation_flag=", parser_set_cancellation_flag,
-                   1);
   rb_define_method(cParser, "included_ranges", parser_get_included_ranges, 0);
   rb_define_method(cParser, "included_ranges=", parser_set_included_ranges, 1);
   rb_define_method(cParser, "language", parser_get_language, 0);

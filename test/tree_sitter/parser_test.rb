@@ -117,13 +117,6 @@ describe 'print_dot_graphs' do
   end
 end
 
-describe 'canecalation_flags' do
-  it 'must get/set cancellation_flah' do
-    parser.cancellation_flag = 1
-    assert_equal 1, parser.cancellation_flag
-  end
-end
-
 # TODO: included_ranges for parsing partial documents.
 
 # TODO: parsing with non-nil tree.

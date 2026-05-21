@@ -3,6 +3,7 @@
 ## Breaking Changes
 
 - Input enoding can be `UTF-16LE`, `UTF16LE`, or `UTF8`. `UTF16` is not longer accepted.
+- `Parser#cancellation_flag` is removed.
 
 ## Bug Fixes
 
