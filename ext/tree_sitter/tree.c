@@ -180,7 +180,7 @@ static VALUE tree_print_dot_graph(VALUE self, VALUE file) {
                 S_IWUSR | S_IRUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWOTH);
   if (fd < 0) {
     rb_raise(rb_eRuntimeError, "Could not open file `%s'.\nReason:\n%s", path,
-             strerror(fd));
+             strerror(errno));
     return Qnil;
   }
   ts_tree_print_dot_graph(SELF, fd);

@@ -45,6 +45,16 @@ describe 'print_dot_graph' do
     assert File.file?(dot), 'dot file must be a file'
     refute_equal 0, File.size(dot)
   end
+
+  it 'raises with a sensible error message on bad path' do
+    err = assert_raises(RuntimeError) do
+      tree.print_dot_graph('/nonexistent/path/to/file.gv')
+    end
+    # The error should contain the actual OS reason (e.g. "No such file or directory"),
+    # not the garbled "Unknown error" that strerror(fd) would produce.
+    assert_match(/Reason:\n/, err.message)
+    refute_match(/Unknown error/, err.message)
+  end
 end
 
 describe 'included_ranges' do
