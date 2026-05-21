@@ -9,6 +9,7 @@
 - Both `Node#descendant_for_point_range` and `Node#named_descendant_for_point_range` had incomplete bounds validation.
 - Fixed an issue with dangling handles from `dl_open`.
 - Fixed an issue in `Query` initialization.
+- `QueryCursor#set_byte_range` and `QueryCursor#set_point_range=` no longer ignore the `bool` return value from the tree-sitter C API.
 
 # v2.1.1 (30-04-2026)
 

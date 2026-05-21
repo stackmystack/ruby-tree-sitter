@@ -183,8 +183,9 @@ static VALUE query_cursor_remove_match(VALUE self, VALUE id) {
  * @return [nil]
  */
 static VALUE query_cursor_set_byte_range(VALUE self, VALUE from, VALUE to) {
-  ts_query_cursor_set_byte_range(SELF, NUM2UINT(from), NUM2UINT(to));
-  return Qnil;
+  return ts_query_cursor_set_byte_range(SELF, NUM2UINT(from), NUM2UINT(to))
+             ? Qtrue
+             : Qfalse;
 }
 
 /**
@@ -194,9 +195,10 @@ static VALUE query_cursor_set_byte_range(VALUE self, VALUE from, VALUE to) {
  * @return [nil]
  */
 static VALUE query_cursor_set_point_range(VALUE self, VALUE from, VALUE to) {
-  ts_query_cursor_set_point_range(SELF, value_to_point(from),
-                                  value_to_point(to));
-  return Qnil;
+  return ts_query_cursor_set_point_range(SELF, value_to_point(from),
+                                         value_to_point(to))
+             ? Qtrue
+             : Qfalse;
 }
 
 void init_query_cursor(void) {
