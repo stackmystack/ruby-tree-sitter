@@ -78,7 +78,7 @@ describe 'parse_string_encoding' do
   it 'must parse nil' do
     res = parser.parse_string_encoding(nil, nil, :utf8)
     assert_nil res
-    res = parser.parse_string_encoding(nil, nil, :utf16)
+    res = parser.parse_string_encoding(nil, nil, :utf16le)
     assert_nil res
   end
 
@@ -86,8 +86,8 @@ describe 'parse_string_encoding' do
     ['empty', '', 0, :utf8],
     ['valid', program, 1, :utf8],
     # ['invalid', margorp, 3, :utf8],
-    ['empty', ''.encode('utf-16'), 0, :utf16],
-    ['valid', program16, 1, :utf16],
+    ['empty', ''.encode('utf-16'), 0, :utf16le],
+    ['valid', program16, 1, :utf16le],
     # ['invalid', margorp_16, 1, :utf16]
   ].each do |q, p, c, e|
     it "must parse #{q} programs in #{e}" do

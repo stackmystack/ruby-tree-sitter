@@ -1,5 +1,9 @@
 # News
 
+## Breaking Changes
+
+- Input enoding can be `UTF-16LE`, `UTF16LE`, or `UTF8`. `UTF16` is not longer accepted.
+
 ## Bug Fixes
 
 - `Node#edit` works correctly now.

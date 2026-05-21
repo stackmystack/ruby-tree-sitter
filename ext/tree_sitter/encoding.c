@@ -4,18 +4,23 @@ extern VALUE mTreeSitter;
 
 VALUE mEncoding;
 
-const char *utf8 = "utf8";
-const char *utf16 = "utf16";
+const char *utf8_s = "utf8";
+const char *utf16le_s = "utf16le";
+const char *utf16be_s = "utf16be";
+const char *custom_s = "custom";
 
 TSInputEncoding value_to_encoding(VALUE encoding) {
   VALUE enc = SYM2ID(encoding);
-  /* VALUE u8 = rb_const_get_at(mEncoding, rb_intern(utf8)); */
-  VALUE u16 = SYM2ID(rb_const_get_at(mEncoding, rb_intern("UTF16")));
+  VALUE utf16le = SYM2ID(rb_const_get_at(mEncoding, rb_intern("UTF16LE")));
+  VALUE utf16be = SYM2ID(rb_const_get_at(mEncoding, rb_intern("UTF16BE")));
+  VALUE custom = SYM2ID(rb_const_get_at(mEncoding, rb_intern("CUSTOM")));
 
-  // NOTE: should we emit a warning instead of defaulting to UTF8?
-  if (enc == u16) {
-    // tree-sitter 0.26+ split UTF16 into UTF16LE and UTF16BE
+  if (enc == utf16le) {
     return TSInputEncodingUTF16LE;
+  } else if (enc == utf16be) {
+    return TSInputEncodingUTF16BE;
+  } else if (enc == custom) {
+    return TSInputEncodingCustom;
   } else {
     return TSInputEncodingUTF8;
   }
@@ -25,6 +30,8 @@ void init_encoding(void) {
   mEncoding = rb_define_module_under(mTreeSitter, "Encoding");
 
   /* Constants */
-  rb_define_const(mEncoding, "UTF8", ID2SYM(rb_intern(utf8)));
-  rb_define_const(mEncoding, "UTF16", ID2SYM(rb_intern(utf16)));
+  rb_define_const(mEncoding, "UTF8", ID2SYM(rb_intern(utf8_s)));
+  rb_define_const(mEncoding, "UTF16LE", ID2SYM(rb_intern(utf16le_s)));
+  rb_define_const(mEncoding, "UTF16BE", ID2SYM(rb_intern(utf16be_s)));
+  rb_define_const(mEncoding, "CUSTOM", ID2SYM(rb_intern(custom_s)));
 }
