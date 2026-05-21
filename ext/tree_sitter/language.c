@@ -11,11 +11,67 @@ extern VALUE mTreeSitter;
 
 VALUE cLanguage;
 
-DATA_TYPE(TSLanguage *, language)
-DATA_FREE(language)
-DATA_MEMSIZE(language)
-DATA_DECLARE_DATA_TYPE(language)
-DATA_ALLOCATE(language)
+// We can't use the DATA_* macros here because Language has two kinds of
+// lifecycle (owned vs. borrowed), which requires a custom struct with an
+// extra dl_handle field.
+//
+// Owned Languages:
+//
+// Created by language_load() via dlopen().  The TSLanguage* lives inside
+// the loaded shared library, so the library must stay mapped as long as
+// the Language object is alive.  We store the dlopen handle in dl_handle
+// and dlclose() it in language_free().
+//
+// Borrowed Languages:
+//
+// Created by new_language() from ts_parser_language(), ts_tree_language(),
+// or ts_node_language().  These return a const TSLanguage* that is owned
+// by the parser / tree / node and we must NOT close it.  dl_handle stays
+// NULL and language_free() is a no-op for the library (just xfree).
+//
+// Double-close is not a concern: language_load() is the only code path
+// that calls dlopen(), and each successful load pairs exactly one
+// dlclose() in the corresponding GC finalizer.  If the same .so is
+// dlopen'd twice (unlikely), the OS reference-counts it; two dlclose()
+// calls simply decrement the count twice.
+typedef struct {
+  TSLanguage *data;
+  void *dl_handle;
+} language_t;
+
+static void language_free(void *ptr) {
+  language_t *type = (language_t *)ptr;
+  if (type->dl_handle != NULL) {
+    dlclose(type->dl_handle);
+  }
+  xfree(ptr);
+}
+
+static size_t language_memsize(const void *ptr) {
+  language_t *type = (language_t *)ptr;
+  return sizeof(type);
+}
+
+const rb_data_type_t language_data_type = {
+    .wrap_struct_name = "language",
+    .function =
+        {
+            .dmark = NULL,
+            .dfree = language_free,
+            .dsize = language_memsize,
+            .dcompact = NULL,
+        },
+    .flags = RUBY_TYPED_FREE_IMMEDIATELY,
+};
+
+static VALUE language_allocate(VALUE klass) {
+  language_t *language;
+  VALUE res =
+      TypedData_Make_Struct(klass, language_t, &language_data_type, language);
+  language->dl_handle = NULL;
+  return res;
+}
+
 DATA_UNWRAP(language)
 
 TSLanguage *value_to_language(VALUE self) { return SELF; }
@@ -33,7 +89,8 @@ VALUE new_language(const TSLanguage *language) {
  * with this gem.
  *
  * @param name [String] the parser's name.
- * @param path [String, Pathname] the parser's shared library (so, dylib) path on disk.
+ * @param path [String, Pathname] the parser's shared library (so, dylib) path
+ * on disk.
  *
  * @return [Language]
  */
@@ -43,9 +100,11 @@ static VALUE language_load(VALUE self, VALUE name, VALUE path) {
   void *lib = dlopen(path_cstr, RTLD_NOW);
   if (lib == NULL) {
     const char *err = dlerror();
-    VALUE parser_not_found = rb_const_get(mTreeSitter, rb_intern("ParserNotFoundError"));
+    VALUE parser_not_found =
+        rb_const_get(mTreeSitter, rb_intern("ParserNotFoundError"));
     rb_raise(parser_not_found,
-             "Could not load shared library `%s'.\nReason: %s", path_cstr, err ? err : "unknown error");
+             "Could not load shared library `%s'.\nReason: %s", path_cstr,
+             err ? err : "unknown error");
   }
 
   VALUE symbol_name = rb_sprintf("tree_sitter_%s", StringValueCStr(name));
@@ -60,16 +119,18 @@ static VALUE language_load(VALUE self, VALUE name, VALUE path) {
   if (make_ts_language == NULL) {
     const char *err = dlerror();
     dlclose(lib);
-    VALUE symbol_not_found = rb_const_get(mTreeSitter, rb_intern("SymbolNotFoundError"));
+    VALUE symbol_not_found =
+        rb_const_get(mTreeSitter, rb_intern("SymbolNotFoundError"));
     rb_raise(symbol_not_found,
-             "Could not load symbol `%s' from library `%s'.\nReason: %s",
-             buf, path_cstr, err ? err : "symbol not found");
+             "Could not load symbol `%s' from library `%s'.\nReason: %s", buf,
+             path_cstr, err ? err : "symbol not found");
   }
 
   const TSLanguage *lang = make_ts_language();
   if (lang == NULL) {
     dlclose(lib);
-    VALUE language_load_error = rb_const_get(mTreeSitter, rb_intern("LanguageLoadError"));
+    VALUE language_load_error =
+        rb_const_get(mTreeSitter, rb_intern("LanguageLoadError"));
     rb_raise(language_load_error,
              "TSLanguage = NULL for language `%s' in library `%s'.\nCall your "
              "local TSLanguage supplier.",
@@ -79,7 +140,8 @@ static VALUE language_load(VALUE self, VALUE name, VALUE path) {
   // tree-sitter 0.26+ renamed ts_language_version to ts_language_abi_version
   uint32_t version = ts_language_abi_version(lang);
   if (version < TREE_SITTER_MIN_COMPATIBLE_LANGUAGE_VERSION) {
-    VALUE version_error = rb_const_get(mTreeSitter, rb_intern("ParserVersionError"));
+    VALUE version_error =
+        rb_const_get(mTreeSitter, rb_intern("ParserVersionError"));
     rb_raise(version_error,
              "Language %s (v%d) from `%s' is old.\nMinimum supported ABI: "
              "v%d.\nCurrent ABI: v%d.",
@@ -88,7 +150,11 @@ static VALUE language_load(VALUE self, VALUE name, VALUE path) {
              TREE_SITTER_LANGUAGE_VERSION);
   }
 
-  return new_language(lang);
+  VALUE result = new_language(lang);
+  // Transfer ownership of the dlopen handle to the GC.  When this Language
+  // object is collected, language_free() will call dlclose(lib).
+  unwrap(result)->dl_handle = lib;
+  return result;
 }
 
 static VALUE language_equal(VALUE self, VALUE other) {
