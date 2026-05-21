@@ -86,7 +86,7 @@ static VALUE node_has_error(VALUE self) {
  *
  * @return [Boolean]
  */
-VALUE node_is_error(VALUE self) {
+static VALUE node_is_error(VALUE self) {
   return ts_node_is_error(SELF) ? Qtrue : Qfalse;
 }
 
@@ -201,7 +201,7 @@ static VALUE node_child_count(VALUE self) {
  *
  * @return [Integer]
  */
-VALUE node_descendant_count(VALUE self) {
+static VALUE node_descendant_count(VALUE self) {
   return UINT2NUM(ts_node_descendant_count(SELF));
 }
 
@@ -352,7 +352,7 @@ static VALUE node_first_named_child_for_byte(VALUE self, VALUE byte) {
  *
  * @return [Integer]
  */
-VALUE node_grammar_symbol(VALUE self) {
+static VALUE node_grammar_symbol(VALUE self) {
   return UINT2NUM(ts_node_grammar_symbol(SELF));
 }
 
@@ -362,7 +362,7 @@ VALUE node_grammar_symbol(VALUE self) {
  *
  * @return String
  */
-VALUE node_grammar_type(VALUE self) {
+static VALUE node_grammar_type(VALUE self) {
   return safe_str(ts_node_grammar_type(SELF));
 }
 
@@ -492,7 +492,7 @@ static VALUE node_next_sibling(VALUE self) {
  *
  * @return [Integer]
  */
-VALUE node_next_parse_state(VALUE self) {
+static VALUE node_next_parse_state(VALUE self) {
   return UINT2NUM(ts_node_next_parse_state(SELF));
 }
 
@@ -546,7 +546,7 @@ static VALUE node_start_point(VALUE self) {
  *
  * @return [Integer]
  */
-VALUE node_parse_state(VALUE self) {
+static VALUE node_parse_state(VALUE self) {
   return UINT2NUM(ts_node_parse_state(SELF));
 }
 
