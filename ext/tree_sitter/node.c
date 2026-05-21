@@ -246,9 +246,11 @@ static VALUE node_descendant_for_point_range(VALUE self, VALUE from, VALUE to) {
   TSPoint f = value_to_point(from);
   TSPoint t = value_to_point(to);
 
-  if ((f.row < start.row) || (t.row > end.row) ||
-      (f.row == start.row && (f.column < start.column)) ||
-      (t.row == end.row && (t.column > end.column))) {
+  if ((f.row < start.row) || (f.row > end.row) || (t.row < start.row) ||
+      (t.row > end.row) || (f.row == start.row && f.column < start.column) ||
+      (f.row == end.row && f.column > end.column) ||
+      (t.row == start.row && t.column < start.column) ||
+      (t.row == end.row && t.column > end.column)) {
     rb_raise(rb_eIndexError,
              "Invalid point range: [%+" PRIsVALUE ", %+" PRIsVALUE
              "] is not in [%+" PRIsVALUE ", %+" PRIsVALUE "].",
@@ -416,9 +418,11 @@ static VALUE node_named_descendant_for_point_range(VALUE self, VALUE from,
   TSPoint f = value_to_point(from);
   TSPoint t = value_to_point(to);
 
-  if ((f.row < start.row) || (t.row > end.row) ||
-      (f.row == start.row && (f.column < start.column)) ||
-      (t.row == end.row && (t.column > end.column))) {
+  if ((f.row < start.row) || (f.row > end.row) || (t.row < start.row) ||
+      (t.row > end.row) || (f.row == start.row && f.column < start.column) ||
+      (f.row == end.row && f.column > end.column) ||
+      (t.row == start.row && t.column < start.column) ||
+      (t.row == end.row && t.column > end.column)) {
     rb_raise(rb_eIndexError,
              "Invalid point range: [%+" PRIsVALUE ", %+" PRIsVALUE
              "] is not in [%+" PRIsVALUE ", %+" PRIsVALUE "].",

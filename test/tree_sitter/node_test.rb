@@ -233,6 +233,24 @@ describe 'child' do
       p1.column = @child.end_point.column + 1
       @child.named_descendant_for_point_range(@child.start_point, p1)
     end
+
+    # from point is entirely after the node (f.row > end.row)
+    # to point is inside — only the missing f.row > end.row check should catch this
+    far_after = TreeSitter::Point.new
+    far_after.row = @child.end_point.row + 10
+    far_after.column = 0
+    assert_raises(IndexError) { @child.descendant_for_point_range(far_after, @child.end_point) }
+    assert_raises(IndexError) { @child.named_descendant_for_point_range(far_after, @child.end_point) }
+
+    # to point is entirely before the node (t.row < start.row)
+    # from point is inside — only the missing t.row < start.row check should catch this
+    # Use a node that starts after row 0 (the body) so we can test "before"
+    body = @child.named_child(2) # body_statements, starts at row > 0
+    way_before = TreeSitter::Point.new
+    way_before.row = 0
+    way_before.column = 0
+    assert_raises(IndexError) { body.descendant_for_point_range(body.start_point, way_before) }
+    assert_raises(IndexError) { body.named_descendant_for_point_range(body.start_point, way_before) }
   end
 end
 
