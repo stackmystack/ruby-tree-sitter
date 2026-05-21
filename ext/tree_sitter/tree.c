@@ -148,11 +148,12 @@ static VALUE tree_edit(VALUE self, VALUE edit) {
  */
 static VALUE included_ranges(VALUE self) {
   uint32_t length;
-  const TSRange *ranges = ts_tree_included_ranges(SELF, &length);
+  TSRange *ranges = ts_tree_included_ranges(SELF, &length);
   VALUE res = rb_ary_new_capa(length);
   for (uint32_t i = 0; i < length; i++) {
     rb_ary_push(res, new_range(&ranges[i]));
   }
+  free(ranges);
   return res;
 }
 

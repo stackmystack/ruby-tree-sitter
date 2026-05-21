@@ -3,6 +3,7 @@
 ## Bug Fixes
 
 - `Node#edit` works correctly now.
+- `Tree#included_ranges` frees resources correctlt.
 
 # v2.1.1 (30-04-2026)
 

@@ -47,5 +47,34 @@ describe 'print_dot_graph' do
   end
 end
 
+describe 'included_ranges' do
+  it 'must return an array of ranges' do
+    ranges = tree.included_ranges
+    assert_instance_of Array, ranges
+    assert ranges.empty? || ranges.all? { |r| r.is_a?(TreeSitter::Range) }
+  end
+
+  it 'must return the ranges from a partial parse' do
+    parser = TreeSitter::Parser.new
+    parser.language = ruby
+    # Set an included range for a partial parse
+    range = TreeSitter::Range.new
+    range.start_byte = 0
+    range.end_byte = program.bytesize
+    range.start_point = TreeSitter::Point.new
+    range.start_point.row = 0
+    range.start_point.column = 0
+    range.end_point = TreeSitter::Point.new
+    range.end_point.row = program.count("\n")
+    range.end_point.column = program.lines.last.length
+    parser.included_ranges = [range]
+
+    partial_tree = parser.parse_string(nil, program)
+    ranges = partial_tree.included_ranges
+    assert_instance_of Array, ranges
+    assert_equal 1, ranges.length
+  end
+end
+
 # TODO: edit
 # TODO: changed_ranges
