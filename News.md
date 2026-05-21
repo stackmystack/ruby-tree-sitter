@@ -8,6 +8,7 @@
 - `Tree#print_dot_graph` used `strerror(fd)`; when `open()` fails, `fd` is `-1`, so `strerror(-1)` produced the garbage message `"Unknown error: -1"` instead of the real OS reason.
 - Both `Node#descendant_for_point_range` and `Node#named_descendant_for_point_range` had incomplete bounds validation.
 - Fixed an issue with dangling handles from `dl_open`.
+- Fixed an issue in `Query` initialization.
 
 # v2.1.1 (30-04-2026)
 

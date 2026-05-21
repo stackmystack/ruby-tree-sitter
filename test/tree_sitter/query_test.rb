@@ -30,6 +30,11 @@ describe 'pattern/capture/string' do
     _ { TreeSitter::Query.new(ruby, '(stupid query') }.must_raise TreeSitter::QueryCreationError
   end
 
+  it 'must include the error offset in the exception message' do
+    err = _ { TreeSitter::Query.new(ruby, '(stupid query') }.must_raise TreeSitter::QueryCreationError
+    _(err.message).must_match(/offset \d+/)
+  end
+
   it 'must not crash when GC collects a failed query allocation' do
     # Creating many invalid queries fills the heap with allocations that have
     # uninitialized `data` pointers. After the exception, the partially-

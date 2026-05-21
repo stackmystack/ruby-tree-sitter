@@ -137,10 +137,10 @@ static VALUE query_initialize(VALUE self, VALUE language, VALUE source) {
 
   TSQuery *res = ts_query_new(lang, src, len, &error_offset, &error_type);
 
-  if (res == NULL || error_offset > 0) {
+  if (res == NULL) {
     VALUE query_creation_error =
         rb_const_get(mTreeSitter, rb_intern("QueryCreationError"));
-    rb_raise(query_creation_error, "Could not create query: TSQueryError%s",
+    rb_raise(query_creation_error, "Query error at offset %u: %s", error_offset,
              query_error_str(error_type));
   } else {
     SELF = res;
