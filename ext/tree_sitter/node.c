@@ -272,9 +272,8 @@ static VALUE node_descendant_for_point_range(VALUE self, VALUE from, VALUE to) {
  * @return [nil]
  */
 static VALUE node_edit(VALUE self, VALUE input_edit) {
-  TSNode node = SELF;
   TSInputEdit edit = value_to_input_edit(input_edit);
-  ts_node_edit(&node, &edit);
+  ts_node_edit(&SELF, &edit);
 
   return Qnil;
 }

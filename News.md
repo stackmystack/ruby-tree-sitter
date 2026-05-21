@@ -1,5 +1,9 @@
 # News
 
+## Bug Fixes
+
+- `Node#edit` works correctly now.
+
 # v2.1.1 (30-04-2026)
 
 - Precompiled gems for ruby 4 are here.

@@ -265,7 +265,35 @@ describe 'siblings' do
   end
 end
 
-# TODO: edit
+describe 'edit' do
+  it 'must update node position after an edit inserts bytes before it' do
+    tree = parser.parse_string(nil, 'x = 1')
+    node = tree.root_node
+    old_start = node.start_byte
+    old_end   = node.end_byte
+
+    # Insert one space at the beginning of the document.
+    edit = TreeSitter::InputEdit.new
+    edit.start_byte = 0
+    edit.old_end_byte = 0
+    edit.new_end_byte = 1
+    edit.start_point = TreeSitter::Point.new
+    edit.start_point.row = 0
+    edit.start_point.column = 0
+    edit.old_end_point = TreeSitter::Point.new
+    edit.old_end_point.row = 0
+    edit.old_end_point.column = 0
+    edit.new_end_point = TreeSitter::Point.new
+    edit.new_end_point.row = 0
+    edit.new_end_point.column = 1
+
+    tree.edit(edit)
+    node.edit(edit)
+
+    assert_equal old_start + 1, node.start_byte
+    assert_equal old_end + 1, node.end_byte
+  end
+end
 
 # Tese are High-Level Ruby APIs that we designed.
 # They rely on the bindings.
