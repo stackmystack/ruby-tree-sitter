@@ -5,38 +5,78 @@ extern VALUE mTreeSitter;
 
 VALUE cNode;
 
-DATA_TYPE(TSNode, node)
+// Manual struct (not DATA_TYPE) because we need a VALUE tree field for GC.
+// The node might outlive the tree, so the node needs to track its tree.
+typedef struct {
+  TSNode data;
+  VALUE tree;
+} node_t;
 
-static void node_free(void *ptr) {
-  node_t *type = (node_t *)ptr;
-  tree_rc_free(type->data.tree);
-  xfree(ptr);
+static void node_free(void *ptr) { xfree(ptr); }
+
+static size_t node_memsize(const void *ptr) {
+  node_t *node = (node_t *)ptr;
+  return sizeof(node);
 }
 
-DATA_MEMSIZE(node)
-DATA_DECLARE_DATA_TYPE(node)
-DATA_ALLOCATE(node)
-DATA_UNWRAP(node)
+static void node_mark(void *ptr) {
+  node_t *node = (node_t *)ptr;
+  rb_gc_mark_movable(node->tree);
+}
 
-VALUE new_node(const TSNode *ptr) {
+static void node_compact(void *ptr) {
+  node_t *node = (node_t *)ptr;
+  node->tree = rb_gc_location(node->tree);
+}
+
+const rb_data_type_t node_data_type = {
+    .wrap_struct_name = "node",
+    .function =
+        {
+            .dmark = node_mark,
+            .dfree = node_free,
+            .dsize = node_memsize,
+            .dcompact = node_compact,
+        },
+    .flags = RUBY_TYPED_FREE_IMMEDIATELY,
+};
+
+static VALUE node_allocate(VALUE klass) {
+  node_t *node;
+  VALUE res = TypedData_Make_Struct(klass, node_t, &node_data_type, node);
+  node->tree = Qnil;
+  return res;
+}
+
+static node_t *unwrap(VALUE self) {
+  node_t *node;
+  TypedData_Get_Struct(self, node_t, &node_data_type, node);
+  return node;
+}
+
+// Return the Tree VALUE held by a Node, for cursors to capture.
+VALUE node_tree(VALUE self) { return (unwrap(self))->tree; }
+
+VALUE new_node(const TSNode *ptr, VALUE tree) {
   if (ptr == NULL) {
     return Qnil;
   }
   VALUE res = node_allocate(cNode);
   node_t *type = unwrap(res);
   type->data = *ptr;
-  tree_rc_new(type->data.tree);
-  return res;
-}
-VALUE new_node_by_val(TSNode ptr) {
-  VALUE res = node_allocate(cNode);
-  node_t *type = unwrap(res);
-  type->data = ptr;
-  tree_rc_new(type->data.tree);
+  type->tree = tree;
   return res;
 }
 
-DATA_FROM_VALUE(TSNode, node)
+VALUE new_node_by_val(TSNode ptr, VALUE tree) {
+  VALUE res = node_allocate(cNode);
+  node_t *type = unwrap(res);
+  type->data = ptr;
+  type->tree = tree;
+  return res;
+}
+
+TSNode value_to_node(VALUE self) { return (unwrap(self))->data; }
 
 /**
  * Check if two nodes are identical.
@@ -145,7 +185,7 @@ static VALUE node_child(VALUE self, VALUE idx) {
   uint32_t range = ts_node_child_count(node);
 
   if (index < range) {
-    return new_node_by_val(ts_node_child(node, index));
+    return new_node_by_val(ts_node_child(node, index), unwrap(self)->tree);
   } else {
     rb_raise(rb_eIndexError, "Index %d is out of range (len = %d)", index,
              range);
@@ -160,7 +200,8 @@ static VALUE node_child(VALUE self, VALUE idx) {
  * @return [Node]
  */
 static VALUE node_child_by_field_id(VALUE self, VALUE field_id) {
-  return new_node_by_val(ts_node_child_by_field_id(SELF, NUM2UINT(field_id)));
+  return new_node_by_val(ts_node_child_by_field_id(SELF, NUM2UINT(field_id)),
+                         unwrap(self)->tree);
 }
 
 /**
@@ -175,7 +216,8 @@ static VALUE node_child_by_field_name(VALUE self, VALUE field_name) {
     VALUE field_str = rb_funcall(field_name, rb_intern("to_s"), 0);
     const char *name = StringValuePtr(field_str);
     uint32_t length = (uint32_t)RSTRING_LEN(field_str);
-    return new_node_by_val(ts_node_child_by_field_name(SELF, name, length));
+    return new_node_by_val(ts_node_child_by_field_name(SELF, name, length),
+                           unwrap(self)->tree);
   } else {
     return Qnil;
   }
@@ -224,7 +266,8 @@ static VALUE node_descendant_for_byte_range(VALUE self, VALUE from, VALUE to) {
     rb_raise(rb_eIndexError, "From > To: %d > %d", from_b, to_b);
   } else {
     return new_node_by_val(
-        ts_node_descendant_for_byte_range(SELF, from_b, to_b));
+        ts_node_descendant_for_byte_range(SELF, from_b, to_b),
+        unwrap(self)->tree);
   }
 }
 
@@ -256,7 +299,8 @@ static VALUE node_descendant_for_point_range(VALUE self, VALUE from, VALUE to) {
              "] is not in [%+" PRIsVALUE ", %+" PRIsVALUE "].",
              from, to, new_point(&start), new_point(&end));
   } else {
-    return new_node_by_val(ts_node_descendant_for_point_range(node, f, t));
+    return new_node_by_val(ts_node_descendant_for_point_range(node, f, t),
+                           unwrap(self)->tree);
   }
 }
 
@@ -330,7 +374,8 @@ static VALUE node_field_name_for_child(VALUE self, VALUE idx) {
  * @return [Node]
  */
 static VALUE node_first_child_for_byte(VALUE self, VALUE byte) {
-  return new_node_by_val(ts_node_first_child_for_byte(SELF, NUM2UINT(byte)));
+  return new_node_by_val(ts_node_first_child_for_byte(SELF, NUM2UINT(byte)),
+                         unwrap(self)->tree);
 }
 
 /**
@@ -342,7 +387,8 @@ static VALUE node_first_child_for_byte(VALUE self, VALUE byte) {
  */
 static VALUE node_first_named_child_for_byte(VALUE self, VALUE byte) {
   return new_node_by_val(
-      ts_node_first_named_child_for_byte(SELF, NUM2UINT(byte)));
+      ts_node_first_named_child_for_byte(SELF, NUM2UINT(byte)),
+      unwrap(self)->tree);
 }
 
 /**
@@ -395,7 +441,8 @@ static VALUE node_named_descendant_for_byte_range(VALUE self, VALUE from,
     rb_raise(rb_eIndexError, "From > To: %d > %d", from_b, to_b);
   } else {
     return new_node_by_val(
-        ts_node_named_descendant_for_byte_range(SELF, from_b, to_b));
+        ts_node_named_descendant_for_byte_range(SELF, from_b, to_b),
+        unwrap(self)->tree);
   }
 }
 
@@ -428,8 +475,8 @@ static VALUE node_named_descendant_for_point_range(VALUE self, VALUE from,
              "] is not in [%+" PRIsVALUE ", %+" PRIsVALUE "].",
              from, to, new_point(&start), new_point(&end));
   } else {
-    return new_node_by_val(
-        ts_node_named_descendant_for_point_range(node, f, t));
+    return new_node_by_val(ts_node_named_descendant_for_point_range(node, f, t),
+                           unwrap(self)->tree);
   }
 }
 
@@ -451,7 +498,8 @@ static VALUE node_named_child(VALUE self, VALUE idx) {
   uint32_t range = ts_node_named_child_count(node);
 
   if (index < range) {
-    return new_node_by_val(ts_node_named_child(node, index));
+    return new_node_by_val(ts_node_named_child(node, index),
+                           unwrap(self)->tree);
   } else {
     rb_raise(rb_eIndexError, "Index %d is out of range (len = %d)", index,
              range);
@@ -475,7 +523,7 @@ static VALUE node_named_child_count(VALUE self) {
  * @return [Node]
  */
 static VALUE node_next_named_sibling(VALUE self) {
-  return new_node_by_val(ts_node_next_named_sibling(SELF));
+  return new_node_by_val(ts_node_next_named_sibling(SELF), unwrap(self)->tree);
 }
 
 /**
@@ -484,7 +532,7 @@ static VALUE node_next_named_sibling(VALUE self) {
  * @return [Node]
  */
 static VALUE node_next_sibling(VALUE self) {
-  return new_node_by_val(ts_node_next_sibling(SELF));
+  return new_node_by_val(ts_node_next_sibling(SELF), unwrap(self)->tree);
 }
 
 /**
@@ -502,7 +550,7 @@ static VALUE node_next_parse_state(VALUE self) {
  * @return [Node]
  */
 static VALUE node_parent(VALUE self) {
-  return new_node_by_val(ts_node_parent(SELF));
+  return new_node_by_val(ts_node_parent(SELF), unwrap(self)->tree);
 }
 
 /**
@@ -511,7 +559,7 @@ static VALUE node_parent(VALUE self) {
  * @return [Node]
  */
 static VALUE node_prev_named_sibling(VALUE self) {
-  return new_node_by_val(ts_node_prev_named_sibling(SELF));
+  return new_node_by_val(ts_node_prev_named_sibling(SELF), unwrap(self)->tree);
 }
 
 /**
@@ -520,7 +568,7 @@ static VALUE node_prev_named_sibling(VALUE self) {
  * @return [Node]
  */
 static VALUE node_prev_sibling(VALUE self) {
-  return new_node_by_val(ts_node_prev_sibling(SELF));
+  return new_node_by_val(ts_node_prev_sibling(SELF), unwrap(self)->tree);
 }
 
 /**

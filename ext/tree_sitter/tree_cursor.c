@@ -4,18 +4,60 @@ extern VALUE mTreeSitter;
 
 VALUE cTreeCursor;
 
-DATA_TYPE(TSTreeCursor, tree_cursor)
+// Holds a VALUE tree to keep the Tree alive for the lifetime of the cursor.
+typedef struct {
+  TSTreeCursor data;
+  VALUE tree;
+} tree_cursor_t;
+
 static void tree_cursor_free(void *ptr) {
   tree_cursor_t *type = (tree_cursor_t *)ptr;
   ts_tree_cursor_delete(&type->data);
   xfree(ptr);
 }
-DATA_MEMSIZE(tree_cursor)
-DATA_DECLARE_DATA_TYPE(tree_cursor)
-DATA_ALLOCATE(tree_cursor)
-DATA_UNWRAP(tree_cursor)
-DATA_NEW(cTreeCursor, TSTreeCursor, tree_cursor)
-DATA_FROM_VALUE(TSTreeCursor, tree_cursor)
+
+static size_t tree_cursor_memsize(const void *ptr) {
+  tree_cursor_t *type = (tree_cursor_t *)ptr;
+  return sizeof(type);
+}
+
+static void tree_cursor_mark(void *ptr) {
+  tree_cursor_t *cursor = (tree_cursor_t *)ptr;
+  rb_gc_mark_movable(cursor->tree);
+}
+
+static void tree_cursor_compact(void *ptr) {
+  tree_cursor_t *cursor = (tree_cursor_t *)ptr;
+  cursor->tree = rb_gc_location(cursor->tree);
+}
+
+const rb_data_type_t tree_cursor_data_type = {
+    .wrap_struct_name = "tree_cursor",
+    .function =
+        {
+            .dmark = tree_cursor_mark,
+            .dfree = tree_cursor_free,
+            .dsize = tree_cursor_memsize,
+            .dcompact = tree_cursor_compact,
+        },
+    .flags = RUBY_TYPED_FREE_IMMEDIATELY,
+};
+
+static VALUE tree_cursor_allocate(VALUE klass) {
+  tree_cursor_t *cursor;
+  VALUE res = TypedData_Make_Struct(klass, tree_cursor_t,
+                                    &tree_cursor_data_type, cursor);
+  cursor->tree = Qnil;
+  return res;
+}
+
+static tree_cursor_t *unwrap(VALUE self) {
+  tree_cursor_t *cursor;
+  TypedData_Get_Struct(self, tree_cursor_t, &tree_cursor_data_type, cursor);
+  return cursor;
+}
+
+TSTreeCursor value_to_tree_cursor(VALUE self) { return (unwrap(self))->data; }
 
 /**
  * Safely copy a tree cursor.
@@ -26,6 +68,7 @@ static VALUE tree_cursor_copy(VALUE self) {
   VALUE res = tree_cursor_allocate(cTreeCursor);
   tree_cursor_t *ptr = unwrap(res);
   ptr->data = ts_tree_cursor_copy(&SELF);
+  ptr->tree = unwrap(self)->tree;
   return res;
 }
 
@@ -83,7 +126,7 @@ static VALUE tree_cursor_current_field_name(VALUE self) {
  */
 static VALUE tree_cursor_current_node(VALUE self) {
   TSNode node = ts_tree_cursor_current_node(&SELF);
-  return new_node(&node);
+  return new_node(&node, unwrap(self)->tree);
 }
 
 /**
@@ -203,10 +246,14 @@ static VALUE tree_cursor_goto_previous_sibling(VALUE self) {
  *
  * @return [TreeCursor]
  */
-static VALUE tree_cursor_initialize(VALUE self, VALUE node) {
-  TSNode n = value_to_node(node);
+static VALUE tree_cursor_initialize(VALUE self, VALUE node_value) {
+  TSNode n = value_to_node(node_value);
   tree_cursor_t *ptr = unwrap(self);
   ptr->data = ts_tree_cursor_new(n);
+
+  // Capture the tree from the source node so the cursor keeps the Tree alive.
+  ptr->tree = node_tree(node_value);
+
   return self;
 }
 
@@ -215,8 +262,10 @@ static VALUE tree_cursor_initialize(VALUE self, VALUE node) {
  *
  * @return [nil]
  */
-static VALUE tree_cursor_reset(VALUE self, VALUE node) {
-  ts_tree_cursor_reset(&SELF, value_to_node(node));
+static VALUE tree_cursor_reset(VALUE self, VALUE node_value) {
+  ts_tree_cursor_reset(&SELF, value_to_node(node_value));
+  // Update the tree reference to the new node's tree.
+  unwrap(self)->tree = node_tree(node_value);
   return Qnil;
 }
 
@@ -228,8 +277,9 @@ static VALUE tree_cursor_reset(VALUE self, VALUE node) {
  *
  * @return [nil]
  */
-VALUE tree_cursor_reset_to(VALUE self, VALUE src) {
+static VALUE tree_cursor_reset_to(VALUE self, VALUE src) {
   ts_tree_cursor_reset_to(&SELF, &unwrap(src)->data);
+  unwrap(self)->tree = unwrap(src)->tree;
   return Qnil;
 }
 

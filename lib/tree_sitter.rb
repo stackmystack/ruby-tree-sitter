@@ -31,5 +31,3 @@ module TreeSitter
     alias_method :lang, :language
   end
 end
-
-ObjectSpace.define_finalizer(TreeSitter::Tree.class, proc { TreeSitter::Tree.finalizer })

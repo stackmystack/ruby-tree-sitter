@@ -61,12 +61,13 @@ VALUE new_input(const TSInput *);
 VALUE new_language(const TSLanguage *);
 VALUE new_logger(const TSLogger *);
 VALUE new_logger_by_val(TSLogger);
-VALUE new_node(const TSNode *);
-VALUE new_node_by_val(TSNode);
+VALUE new_node(const TSNode *, VALUE tree);
+VALUE new_node_by_val(TSNode, VALUE tree);
+VALUE node_tree(VALUE);
 VALUE new_point(const TSPoint *);
 VALUE new_point_by_val(TSPoint);
-VALUE new_query_capture(const TSQueryCapture *);
-VALUE new_query_match(const TSQueryMatch *);
+VALUE new_query_capture(const TSQueryCapture *, VALUE tree);
+VALUE new_query_match(const TSQueryMatch *, VALUE tree);
 VALUE new_query_predicate_step(const TSQueryPredicateStep *);
 VALUE new_range(const TSRange *);
 VALUE new_symbol_type(TSSymbolType);
@@ -96,10 +97,6 @@ void init_tree_cursor(void);
 // Other helpers
 const char *quantifier_str(TSQuantifier);
 const char *query_error_str(TSQueryError);
-
-// TSTree reference counting
-int tree_rc_free(const TSTree *);
-void tree_rc_new(const TSTree *);
 
 // This is a special entry-point for the extension
 void Init_tree_sitter(void);

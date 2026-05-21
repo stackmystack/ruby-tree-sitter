@@ -4,45 +4,15 @@ extern VALUE mTreeSitter;
 
 VALUE cTree;
 
-int tree_rc_free(const TSTree *tree) {
-  VALUE ptr = ULONG2NUM((uintptr_t)tree);
-  VALUE rc = rb_cv_get(cTree, "@@rc");
-  VALUE val = rb_hash_lookup(rc, ptr);
-
-  if (!NIL_P(val)) {
-    unsigned int count = NUM2UINT(val);
-    --count;
-    if (count < 1) {
-      rb_hash_delete(rc, ptr);
-      ts_tree_delete((TSTree *)tree);
-      return 1;
-    } else {
-      rb_hash_aset(rc, ptr, ULONG2NUM(count));
-      return 0;
-    }
-  } else {
-    return 1;
-  }
-}
-
-void tree_rc_new(const TSTree *tree) {
-  VALUE ptr = ULONG2NUM((uintptr_t)tree);
-  VALUE rc = rb_cv_get(cTree, "@@rc");
-  VALUE val = rb_hash_lookup(rc, ptr);
-
-  if (NIL_P(val)) {
-    rb_hash_aset(rc, ptr, UINT2NUM(1));
-  } else {
-    rb_hash_aset(rc, ptr, UINT2NUM(NUM2UINT(val) + 1));
-  }
-}
-
 DATA_TYPE(TSTree *, tree)
 static void tree_free(void *ptr) {
   tree_t *type = (tree_t *)ptr;
-  if (tree_rc_free(type->data)) {
-    xfree(ptr);
+  TSTree *data = type->data;
+
+  if (data) {
+    ts_tree_delete(data);
   }
+  xfree(ptr);
 }
 
 DATA_MEMSIZE(tree)
@@ -57,7 +27,7 @@ VALUE new_tree(TSTree *ptr) {
   VALUE res = tree_allocate(cTree);
   tree_t *type = unwrap(res);
   type->data = ptr;
-  tree_rc_new(ptr);
+
   return res;
 }
 
@@ -94,24 +64,6 @@ static VALUE tree_changed_ranges(VALUE _self, VALUE old_tree, VALUE new_tree) {
   }
 
   return res;
-}
-
-static VALUE tree_finalizer(VALUE _self) {
-  VALUE rc = rb_cv_get(cTree, "@@rc");
-  VALUE keys = rb_funcall(rc, rb_intern("keys"), 0);
-  long len = RARRAY_LEN(keys);
-
-  for (long i = 0; i < len; ++i) {
-    VALUE curr = RARRAY_AREF(keys, i);
-    unsigned int val = NUM2UINT(rb_hash_lookup(rc, curr));
-    if (val > 0) {
-      ts_tree_delete((TSTree *)NUM2ULONG(curr));
-    }
-
-    rb_hash_delete(rc, curr);
-  }
-
-  return Qnil;
 }
 
 /**
@@ -194,7 +146,7 @@ static VALUE tree_print_dot_graph(VALUE self, VALUE file) {
  * @return [Node]
  */
 static VALUE tree_root_node(VALUE self) {
-  return new_node_by_val(ts_tree_root_node(SELF));
+  return new_node_by_val(ts_tree_root_node(SELF), self);
 }
 
 /**
@@ -207,7 +159,8 @@ static VALUE tree_root_node_with_offset(VALUE self, VALUE offset_bytes,
                                         VALUE offset_extent) {
   uint32_t bytes = NUM2UINT(offset_bytes);
   TSPoint extent = value_to_point(offset_extent);
-  return new_node_by_val(ts_tree_root_node_with_offset(SELF, bytes, extent));
+  return new_node_by_val(ts_tree_root_node_with_offset(SELF, bytes, extent),
+                         self);
 }
 
 void init_tree(void) {
@@ -217,7 +170,6 @@ void init_tree(void) {
 
   /* Module methods */
   rb_define_module_function(cTree, "changed_ranges", tree_changed_ranges, 2);
-  rb_define_module_function(cTree, "finalizer", tree_finalizer, 0);
 
   /* Class methods */
   rb_define_method(cTree, "copy", tree_copy, 0);
@@ -228,8 +180,4 @@ void init_tree(void) {
   rb_define_method(cTree, "root_node", tree_root_node, 0);
   rb_define_method(cTree, "root_node_with_offset", tree_root_node_with_offset,
                    2);
-
-  // Reference-count created trees
-  VALUE rc = rb_hash_new();
-  rb_cv_set(cTree, "@@rc", rc);
 }

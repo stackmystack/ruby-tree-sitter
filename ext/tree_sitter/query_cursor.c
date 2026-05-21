@@ -4,42 +4,63 @@ extern VALUE mTreeSitter;
 
 VALUE cQueryCursor;
 
-DATA_TYPE(TSQueryCursor *, query_cursor)
-DATA_FREE_PTR(query_cursor)
-DATA_MEMSIZE(query_cursor)
-DATA_DECLARE_DATA_TYPE(query_cursor)
+// Manual struct — holds a tree reference pinned from the exec'd node.
+typedef struct {
+  TSQueryCursor *data;
+  VALUE tree;
+} query_cursor_t;
+
+static void query_cursor_free(void *ptr) {
+  query_cursor_t *type = (query_cursor_t *)ptr;
+  if (type->data != NULL) {
+    ts_query_cursor_delete(type->data);
+  }
+  xfree(ptr);
+}
+
+static size_t query_cursor_memsize(const void *ptr) {
+  query_cursor_t *type = (query_cursor_t *)ptr;
+  return sizeof(type);
+}
+
+static void query_cursor_mark(void *ptr) {
+  query_cursor_t *cursor = (query_cursor_t *)ptr;
+  rb_gc_mark_movable(cursor->tree);
+}
+
+static void query_cursor_compact(void *ptr) {
+  query_cursor_t *cursor = (query_cursor_t *)ptr;
+  cursor->tree = rb_gc_location(cursor->tree);
+}
+
+const rb_data_type_t query_cursor_data_type = {
+    .wrap_struct_name = "query_cursor",
+    .function =
+        {
+            .dmark = query_cursor_mark,
+            .dfree = query_cursor_free,
+            .dsize = query_cursor_memsize,
+            .dcompact = query_cursor_compact,
+        },
+    .flags = RUBY_TYPED_FREE_IMMEDIATELY,
+};
+
 static VALUE query_cursor_allocate(VALUE klass) {
-  query_cursor_t *query_cursor;
+  query_cursor_t *cursor;
   VALUE res = TypedData_Make_Struct(klass, query_cursor_t,
-                                    &query_cursor_data_type, query_cursor);
-  query_cursor->data = ts_query_cursor_new();
+                                    &query_cursor_data_type, cursor);
+  cursor->data = ts_query_cursor_new();
+  cursor->tree = Qnil;
   return res;
 }
-DATA_UNWRAP(query_cursor)
-/**
- * Create a new cursor for executing a given query.
- *
- * The cursor stores the state that is needed to iteratively search
- * for matches. To use the query cursor, first call {QueryCursor#exec}
- * to start running a given query on a given syntax node. Then, there are
- * two options for consuming the results of the query:
- * 1. Repeatedly call {QueryCursor#next_match} to iterate over all of the
- *    *matches* in the order that they were found. Each match contains the
- *    index of the pattern that matched, and an array of captures. Because
- *    multiple patterns can match the same set of nodes, one match may contain
- *    captures that appear *before* some of the captures from a previous match.
- * 2. Repeatedly call {QueryCursor#next_capture} to iterate over all of the
- *    individual *captures* in the order that they appear. This is useful if
- *    don't care about which pattern matched, and just want a single ordered
- *    sequence of captures.
- *
- * If you don't care about consuming all of the results, you can stop calling
- * {QueryCursor#next_match} or {QueryCursor#next_capture} at any point.
- * You can then start executing another query on another node by calling
- * {QueryCursor#exec} again.
- */
-DATA_PTR_NEW(cQueryCursor, TSQueryCursor, query_cursor)
-DATA_FROM_VALUE(TSQueryCursor *, query_cursor)
+
+static query_cursor_t *unwrap(VALUE self) {
+  query_cursor_t *cursor;
+  TypedData_Get_Struct(self, query_cursor_t, &query_cursor_data_type, cursor);
+  return cursor;
+}
+
+TSQueryCursor *value_to_query_cursor(VALUE self) { return SELF; }
 
 /**
  * Start running a given query on a given node.
@@ -51,9 +72,11 @@ DATA_FROM_VALUE(TSQueryCursor *, query_cursor)
  */
 static VALUE query_cursor_exec_static(VALUE self, VALUE query, VALUE node) {
   VALUE res = query_cursor_allocate(cQueryCursor);
-  query_cursor_t *query_cursor = unwrap(res);
-  ts_query_cursor_exec(query_cursor->data, value_to_query(query),
+  query_cursor_t *cursor = unwrap(res);
+  ts_query_cursor_exec(cursor->data, value_to_query(query),
                        value_to_node(node));
+  // Pin the tree so created matches/captures stay alive.
+  cursor->tree = node_tree(node);
   return res;
 }
 
@@ -66,9 +89,10 @@ static VALUE query_cursor_exec_static(VALUE self, VALUE query, VALUE node) {
  * @return [QueryCursor]
  */
 static VALUE query_cursor_exec(VALUE self, VALUE query, VALUE node) {
-  query_cursor_t *query_cursor = unwrap(self);
-  ts_query_cursor_exec(query_cursor->data, value_to_query(query),
+  query_cursor_t *cursor = unwrap(self);
+  ts_query_cursor_exec(cursor->data, value_to_query(query),
                        value_to_node(node));
+  cursor->tree = node_tree(node);
   return self;
 }
 
@@ -131,26 +155,20 @@ static VALUE query_cursor_set_max_start_depth(VALUE self,
   return Qnil;
 }
 
-// FIXME: maybe this is the limit of how "transparent" the bindings need to be.
-// Pending benchmarks, this can be very inefficient because obviously
-// ts_query_cursor_next_capture is intended to be used in a loop.  Creating an
-// array of two values and returning them, intuitively speaking, seem very
-// inefficient.
-// FIXME: maybe this needs to return an empty array to make for a nicer ruby
-// API?
 /**
  * Advance to the next capture of the currently running query.
  *
- * @return [Array<Integer|Boolean>|nil] If there is a capture, return a tuple
- * [Integer, Boolean], otherwise return +nil+.
+ * @return [Array<Integer|Match>|nil] If there is a capture,
+ *  return a tuple [Integer, Match], otherwise return +nil+.
  */
 static VALUE query_cursor_next_capture(VALUE self) {
   TSQueryMatch match;
   uint32_t index;
   if (ts_query_cursor_next_capture(SELF, &match, &index)) {
+    VALUE tree = unwrap(self)->tree;
     VALUE res = rb_ary_new_capa(2);
     rb_ary_push(res, UINT2NUM(index));
-    rb_ary_push(res, new_query_match(&match));
+    rb_ary_push(res, new_query_match(&match, tree));
     return res;
   } else {
     return Qnil;
@@ -160,12 +178,12 @@ static VALUE query_cursor_next_capture(VALUE self) {
 /**
  * Advance to the next match of the currently running query.
  *
- * @return [Boolean] Whether there's a match.
+ * @return [Match|nil] The match, or nil if exhausted.
  */
 static VALUE query_cursor_next_match(VALUE self) {
   TSQueryMatch match;
   if (ts_query_cursor_next_match(SELF, &match)) {
-    return new_query_match(&match);
+    return new_query_match(&match, unwrap(self)->tree);
   } else {
     return Qnil;
   }
@@ -180,7 +198,7 @@ static VALUE query_cursor_remove_match(VALUE self, VALUE id) {
  * @param from [Integer]
  * @param to   [Integer]
  *
- * @return [nil]
+ * @return [Boolean]
  */
 static VALUE query_cursor_set_byte_range(VALUE self, VALUE from, VALUE to) {
   return ts_query_cursor_set_byte_range(SELF, NUM2UINT(from), NUM2UINT(to))
@@ -192,7 +210,7 @@ static VALUE query_cursor_set_byte_range(VALUE self, VALUE from, VALUE to) {
  * @param from [Point]
  * @param to   [Point]
  *
- * @return [nil]
+ * @return [Boolean]
  */
 static VALUE query_cursor_set_point_range(VALUE self, VALUE from, VALUE to) {
   return ts_query_cursor_set_point_range(SELF, value_to_point(from),
