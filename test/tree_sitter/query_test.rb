@@ -30,6 +30,20 @@ describe 'pattern/capture/string' do
     _ { TreeSitter::Query.new(ruby, '(stupid query') }.must_raise TreeSitter::QueryCreationError
   end
 
+  it 'must not crash when GC collects a failed query allocation' do
+    # Creating many invalid queries fills the heap with allocations that have
+    # uninitialized `data` pointers. After the exception, the partially-
+    # constructed Query objects are garbage. Forcing GC must not crash.
+    100.times do
+      TreeSitter::Query.new(ruby, '(stupid query')
+    rescue TreeSitter::QueryCreationError
+      # expected
+    end
+    GC.start
+    # If we get here without SIGSEGV, the fix works.
+    pass
+  end
+
   it 'must return an Integer for pattern count' do
     query = TreeSitter::Query.new(ruby, pattern)
     assert_equal 1, query.pattern_count

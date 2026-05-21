@@ -124,6 +124,10 @@ static VALUE query_disable_pattern(VALUE self, VALUE pattern) {
  * @return [Query]
  */
 static VALUE query_initialize(VALUE self, VALUE language, VALUE source) {
+  // Guard against GC of partially-constructed objects: if ts_query_new
+  // fails and we raise, query_free sees a NULL data pointer and is a no-op.
+  unwrap(self)->data = NULL;
+
   // FIXME: should we raise an exception here?
   TSLanguage *lang = value_to_language(language);
   const char *src = StringValuePtr(source);
@@ -134,7 +138,8 @@ static VALUE query_initialize(VALUE self, VALUE language, VALUE source) {
   TSQuery *res = ts_query_new(lang, src, len, &error_offset, &error_type);
 
   if (res == NULL || error_offset > 0) {
-    VALUE query_creation_error = rb_const_get(mTreeSitter, rb_intern("QueryCreationError"));
+    VALUE query_creation_error =
+        rb_const_get(mTreeSitter, rb_intern("QueryCreationError"));
     rb_raise(query_creation_error, "Could not create query: TSQueryError%s",
              query_error_str(error_type));
   } else {
