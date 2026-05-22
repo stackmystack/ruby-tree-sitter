@@ -313,6 +313,36 @@ describe 'edit' do
   end
 end
 
+describe 'child_with_descendant' do
+  before do
+    @method = root.child(0)          # the `def mul(a, b) ...` method
+    @params = @method.child(2)       # (method_parameters ...)
+    @ident  = @params.child(1)       # first identifier inside params ("a")
+  end
+
+  it 'returns the direct child of root that contains a deep descendant' do
+    # root -> method -> params -> identifier("a")
+    # root's direct child containing identifier is method
+    assert_equal @method, root.child_with_descendant(@ident)
+  end
+
+  it 'returns the descendant itself when it is a direct child' do
+    assert_equal @params, @method.child_with_descendant(@params)
+  end
+
+  it 'returns nil when the node is an ancestor, not a descendant' do
+    # @method is an ancestor of @params, so asking @params for
+    # child_with_descendant(@method) must return nil
+    assert_nil @params.child_with_descendant(@method)
+  end
+
+  it 'returns the correct intermediate child for a mid-depth descendant' do
+    # root -> method -> params -> identifier("a")
+    # root's direct child containing params is method
+    assert_equal @method, root.child_with_descendant(@params)
+  end
+end
+
 # Tese are High-Level Ruby APIs that we designed.
 # They rely on the bindings.
 

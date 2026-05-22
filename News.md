@@ -21,6 +21,12 @@
   field name, or `nil` if not found. Unlike `Node#[]`, it never raises.
 - `Node#field?(name, anon: false)` checks whether a field exists. The
   `anon:` keyword controls whether anonymous children are considered.
+- `Node#child_with_descendant(descendant)` returns the immediate child of
+  this node that contains the given descendant (or the descendant itself
+  if it is a direct child). Returns `nil` when the descendant is not
+  within the subtree. This is the efficient alternative to walking up
+  via `parent` for iterating over a node's ancestors
+  (C API: `ts_node_child_with_descendant`).
 
 ### Query
 

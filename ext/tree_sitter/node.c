@@ -162,7 +162,7 @@ static VALUE node_child_by_field_id(VALUE self, VALUE field_id) {
  *
  * @param field_name [String, Symbol]
  *
- * @return [Node]
+ * @return [Node, nil]
  */
 static VALUE node_child_by_field_name(VALUE self, VALUE field_name) {
   VALUE field_str = rb_funcall(field_name, rb_intern("to_s"), 0);
@@ -173,6 +173,30 @@ static VALUE node_child_by_field_name(VALUE self, VALUE field_name) {
     return Qnil;
   }
   return new_node_by_val(child, unwrap(self)->tree);
+}
+
+/**
+ * Get the immediate child of this node that contains the given descendant,
+ * or the descendant itself if it is a direct child.
+ *
+ * Returns +nil+ if the descendant is not contained within this node.
+ *
+ * Prefer this method over repeated calls to {parent} when walking the
+ * ancestor chain: start from the root and descend toward the target.
+ *
+ * @param descendant [Node]
+ *
+ * @return [Node, nil]
+ */
+static VALUE node_child_with_descendant(VALUE self, VALUE descendant) {
+  TSNode result =
+      ts_node_child_with_descendant(SELF, value_to_node(descendant));
+
+  if (ts_node_is_null(result)) {
+    return Qnil;
+  }
+
+  return new_node_by_val(result, unwrap(self)->tree);
 }
 
 /**
@@ -613,6 +637,8 @@ void init_node(void) {
   rb_define_method(cNode, "child", node_child, 1);
   rb_define_method(cNode, "child_by_field_id", node_child_by_field_id, 1);
   rb_define_method(cNode, "child_by_field_name", node_child_by_field_name, 1);
+  rb_define_method(cNode, "child_with_descendant", node_child_with_descendant,
+                   1);
   rb_define_method(cNode, "child_count", node_child_count, 0);
   rb_define_method(cNode, "descendant_count", node_descendant_count, 0);
   rb_define_method(cNode, "descendant_for_byte_range",
