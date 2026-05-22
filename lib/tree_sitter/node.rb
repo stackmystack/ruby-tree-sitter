@@ -5,7 +5,7 @@ module TreeSitter
   class Node
     include Enumerable
 
-    # @return [Array<Symbol>] the node's named fields
+    # @return [Array<Symbol>] the node's named fields (from all children).
     def fields
       return @fields if @fields
 
@@ -18,9 +18,68 @@ module TreeSitter
       @fields.to_a
     end
 
-    # @param field [String, Symbol]
-    def field?(field)
-      fields.include?(field.to_sym)
+    # The set of field names attached to *named* children only.
+    #
+    # This is the canonical, reliable field set — it uses the named-child
+    # indexing API ({#field_name_for_named_child}) which avoids a known
+    # tree-sitter bug with the all-child field API.
+    #
+    # Anonymous children with field names (e.g. +field("operator", "*")+)
+    # are absent from this set.
+    def named_fields
+      return @named_fields if @named_fields
+
+      @named_fields = Set.new
+      named_child_count.times do |i|
+        name = field_name_for_named_child(i)
+        @named_fields << name.to_sym if name
+      end
+
+      @named_fields.to_a
+    end
+
+    # Return the child node for the given field name.
+    #
+    # Unlike {#[]}, this method never raises; it returns +nil+ when the
+    # field is not found.
+    #
+    # @example Named fields work out of the box
+    #   node.field(:name)    # => #<Node …>
+    #
+    # @example Anonymous fields (e.g. +binary.operator+) require the kwarg
+    #   node.field(:operator)              # => nil
+    #   node.field(:operator, anon: true)  # => #<Node "*" …>
+    #
+    # @param name  [String, Symbol]   the field name.
+    # @param anon  [Boolean]  when +true+, include fields on anonymous
+    #   children (the old, permissive behaviour).  Default +false+.
+    #
+    # @return [Node, nil]
+    def field(name, anon: false)
+      child_by_field_name(name.to_s) if field?(name, anon:)
+    end
+
+    # Check whether the node has a child with the given field name.
+    #
+    # @example Named-only (default)
+    #   node.field?(:name)      # => true  (named child)
+    #   node.field?(:operator)  # => false (anonymous child, invisible by default)
+    #
+    # @example Include anonymous fields
+    #   node.field?(:operator, anon: true)  # => true
+    #
+    # @param name  [String, Symbol]   the field name.
+    # @param anon  [Boolean]  when +true+, use the all-child field set
+    #   ({#fields}), which includes fields attached to anonymous children.
+    #   Default +false+ (uses the named-child set, which is more reliable).
+    #
+    # @return [Boolean]
+    def field?(name, anon: false)
+      if anon
+        fields.include?(name.to_sym)
+      else
+        named_fields.include?(name.to_sym)
+      end
     end
 
     # Access node's named children.
@@ -56,7 +115,11 @@ module TreeSitter
         case k = keys.first
         when Integer then named_child(k)
         when String, Symbol
-          raise IndexError, "Cannot find field #{k.to_sym}. Available: #{fields.to_a}" unless fields.include?(k.to_sym)
+          anon = TreeSitter.strict_field_access ? false : true
+          if !field?(k, anon:)
+            raise IndexError,
+                  "Cannot find field #{k.to_sym}. Available: #{anon ? fields : named_fields}" # rubocop:disable Metrics/BlockNesting
+          end
 
           child_by_field_name(k.to_s)
         else raise ArgumentError, <<~ERR
@@ -72,8 +135,13 @@ module TreeSitter
     # @!visibility private
     #
     # Allows access to child_by_field_name without using [].
+    #
+    # This is the only field-access path that cannot take an +anon:+ kwarg.
+    # Use {TreeSitter.strict_field_access} to control whether it sees
+    # fields on anonymous children.
     def method_missing(method_name, *_args, &)
-      if fields.include?(method_name)
+      collection = TreeSitter.strict_field_access ? named_fields : fields
+      if collection.include?(method_name)
         child_by_field_name(method_name.to_s)
       else
         super
@@ -83,7 +151,8 @@ module TreeSitter
     # @!visibility private
     #
     def respond_to_missing?(*args)
-      args.length == 1 && fields.include?(args[0])
+      collection = TreeSitter.strict_field_access ? named_fields : fields
+      args.length == 1 && collection.include?(args[0])
     end
 
     # Iterate over a node's children.

@@ -17,6 +17,10 @@
 
 - `Node#field_name_for_named_child(idx)` returns the field name for the
   named child at the given index (C API: `ts_node_field_name_for_named_child`).
+- `Node#field(name, anon: false)` returns the child node for the given
+  field name, or `nil` if not found. Unlike `Node#[]`, it never raises.
+- `Node#field?(name, anon: false)` checks whether a field exists. The
+  `anon:` keyword controls whether anonymous children are considered.
 
 ### Query
 
@@ -34,6 +38,14 @@
 
 - Input enoding can be `UTF-16LE`, `UTF16LE`, or `UTF8`. `UTF16` is not longer accepted.
 - `Parser#cancellation_flag` is removed.
+- `Node#[]`, `Node#fetch`, `Node#method_missing`, and `Node#respond_to_missing?`
+  now use the named-child field API by default. This is more reliable but
+  does not see fields attached to anonymous children (e.g.
+  `binary.operator` pointing to `"*"`).
+  - Set `TreeSitter.strict_field_access = false` to restore the old
+    permissive behaviour globally.
+  - Use `Node#field(:name, anon: true)` or `Node#field?(:name, anon: true)`
+    for per-call anonymous-field access.
 
 ## Bug Fixes
 

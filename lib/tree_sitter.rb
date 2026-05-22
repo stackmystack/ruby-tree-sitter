@@ -29,5 +29,22 @@ module TreeSitter
 
   class << self
     alias_method :lang, :language
+
+    # When +true+ (the default), {Node#[]}, {Node#fetch},
+    # {Node#method_missing}, and {Node#respond_to_missing?} use the
+    # named-child field API, which is more reliable but does not see
+    # fields attached to anonymous children (e.g. +binary.operator+
+    # pointing to +"*"+).
+    #
+    # Set to +false+ to restore the pre-3.0 behaviour that uses the
+    # all-child field API for these four methods.
+    #
+    # This flag does *not* affect {Node#field} or {Node#field?}.
+    # those accept an +anon:+ keyword argument for per-call control.
+    #
+    # @return [Boolean]
+    attr_accessor :strict_field_access
   end
+
+  self.strict_field_access = true
 end

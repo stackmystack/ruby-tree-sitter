@@ -577,3 +577,70 @@ describe 'fetch' do
     end
   end
 end
+
+describe 'anonymous fields' do
+  before do
+    prog = 'a * b'
+    @tree = parser.parse_string(nil, prog)
+    @root = @tree.root_node
+    @binary = @root.child(0) # program -> binary
+  end
+
+  it 'field? returns false for an anonymous field by default' do
+    refute @binary.field?(:operator)
+  end
+
+  it 'field? returns true for an anonymous field with anon: true' do
+    assert @binary.field?(:operator, anon: true)
+  end
+
+  it 'field returns nil for an anonymous field by default' do
+    assert_nil @binary.field(:operator)
+  end
+
+  it 'field returns the anonymous node with anon: true' do
+    op = @binary.field(:operator, anon: true)
+    assert_instance_of TreeSitter::Node, op
+    refute op.null?
+  end
+
+  it 'field? works for named fields regardless of anon:' do
+    assert @binary.field?(:left)
+    assert @binary.field?(:left, anon: false)
+    assert @binary.field?(:left, anon: true)
+  end
+
+  it 'field works for named fields regardless of anon:' do
+    refute_nil @binary.field(:left)
+    refute_nil @binary.field(:left, anon: false)
+    refute_nil @binary.field(:left, anon: true)
+  end
+
+  it '[] raises IndexError for an anonymous field when strict_field_access is true (default)' do
+    TreeSitter.strict_field_access = true
+    assert_raises(IndexError) { @binary['operator'] }
+  end
+
+  it '[] returns the anonymous node when strict_field_access is false' do
+    TreeSitter.strict_field_access = false
+    op = @binary['operator']
+    assert_instance_of TreeSitter::Node, op
+    refute op.null?
+  ensure
+    TreeSitter.strict_field_access = true
+  end
+
+  it 'method_missing raises NoMethodError for an anonymous field when strict_field_access is true (default)' do
+    TreeSitter.strict_field_access = true
+    assert_raises(NoMethodError) { @binary.operator }
+  end
+
+  it 'method_missing returns the anonymous node when strict_field_access is false' do
+    TreeSitter.strict_field_access = false
+    op = @binary.operator
+    assert_instance_of TreeSitter::Node, op
+    refute op.null?
+  ensure
+    TreeSitter.strict_field_access = true
+  end
+end
