@@ -119,9 +119,7 @@
   }
 
 #define DATA_FROM_VALUE(struct, type)                                          \
-  struct value_to_##type(VALUE self) {                                         \
-    return (unwrap(self))->data;                                               \
-  }
+  struct value_to_##type(VALUE self) { return (unwrap(self))->data; }
 
 #define DATA_PTR_NEW(klass, struct, type)                                      \
   VALUE new_##type(struct *ptr) {                                              \
@@ -159,5 +157,73 @@
       return Qnil;                                                             \
     }                                                                          \
   }
+
+// Shared body for types that embed a VALUE tree field for GC tracing.
+// The caller must define type##_t and type##_free before invoking this.
+#define _DATA_WRAP_TREE_SHARED(type, ctype)                                    \
+  static size_t type##_memsize(const void *ptr) { return sizeof(type##_t); }   \
+  static void type##_mark(void *ptr) {                                         \
+    type##_t *t = (type##_t *)ptr;                                             \
+    rb_gc_mark_movable(t->tree);                                               \
+  }                                                                            \
+  static void type##_compact(void *ptr) {                                      \
+    type##_t *t = (type##_t *)ptr;                                             \
+    t->tree = rb_gc_location(t->tree);                                         \
+  }                                                                            \
+  const rb_data_type_t type##_data_type = {                                    \
+      .wrap_struct_name = #type "",                                            \
+      .function =                                                              \
+          {                                                                    \
+              .dmark = type##_mark,                                            \
+              .dfree = type##_free,                                            \
+              .dsize = type##_memsize,                                         \
+              .dcompact = type##_compact,                                      \
+          },                                                                   \
+      .flags = RUBY_TYPED_FREE_IMMEDIATELY,                                    \
+  };                                                                           \
+  static VALUE type##_allocate(VALUE klass) {                                  \
+    type##_t *t;                                                               \
+    VALUE res = TypedData_Make_Struct(klass, type##_t, &type##_data_type, t);  \
+    t->data = (ctype){0};                                                      \
+    t->tree = Qnil;                                                            \
+    return res;                                                                \
+  }                                                                            \
+  static type##_t *unwrap(VALUE self) {                                        \
+    type##_t *t;                                                               \
+    TypedData_Get_Struct(self, type##_t, &type##_data_type, t);                \
+    return t;                                                                  \
+  }
+
+// TypedData wrapper for a C struct that holds a VALUE tree reference.
+// The tree keeps the owning TSTree alive for the GC; no additional C-level
+// cleanup is needed.
+//
+//   DATA_WRAP_WITH_TREE(node, TSNode)
+//   DATA_WRAP_WITH_TREE(query_match, TSQueryMatch)
+//
+#define DATA_WRAP_WITH_TREE(type, ctype)                                       \
+  typedef struct {                                                             \
+    ctype data;                                                                \
+    VALUE tree;                                                                \
+  } type##_t;                                                                  \
+  static void type##_free(void *ptr) { xfree(ptr); }                           \
+  _DATA_WRAP_TREE_SHARED(type, ctype)
+
+// Like DATA_WRAP_WITH_TREE, but calls ts_<type>_delete() on the C data
+// before freeing the Ruby wrapper.
+//
+//   DATA_WRAP_WITH_TREE_DELETE(tree_cursor, TSTreeCursor)
+//
+#define DATA_WRAP_WITH_TREE_DELETE(type, ctype)                                \
+  typedef struct {                                                             \
+    ctype data;                                                                \
+    VALUE tree;                                                                \
+  } type##_t;                                                                  \
+  static void type##_free(void *ptr) {                                         \
+    type##_t *t = (type##_t *)ptr;                                             \
+    ts_##type##_delete(&t->data);                                              \
+    xfree(ptr);                                                                \
+  }                                                                            \
+  _DATA_WRAP_TREE_SHARED(type, ctype)
 
 #endif

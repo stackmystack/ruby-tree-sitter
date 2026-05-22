@@ -4,54 +4,7 @@ extern VALUE mTreeSitter;
 
 VALUE cQueryCapture;
 
-// Manual struct — holds a tree reference so captured nodes don't dangle.
-typedef struct {
-  TSQueryCapture data;
-  VALUE tree;
-} query_capture_t;
-
-static void query_capture_free(void *ptr) { xfree(ptr); }
-
-static size_t query_capture_memsize(const void *ptr) {
-  query_capture_t *cap = (query_capture_t *)ptr;
-  return sizeof(cap);
-}
-
-static void query_capture_mark(void *ptr) {
-  query_capture_t *cap = (query_capture_t *)ptr;
-  rb_gc_mark_movable(cap->tree);
-}
-
-static void query_capture_compact(void *ptr) {
-  query_capture_t *cap = (query_capture_t *)ptr;
-  cap->tree = rb_gc_location(cap->tree);
-}
-
-const rb_data_type_t query_capture_data_type = {
-    .wrap_struct_name = "query_capture",
-    .function =
-        {
-            .dmark = query_capture_mark,
-            .dfree = query_capture_free,
-            .dsize = query_capture_memsize,
-            .dcompact = query_capture_compact,
-        },
-    .flags = RUBY_TYPED_FREE_IMMEDIATELY,
-};
-
-static VALUE query_capture_allocate(VALUE klass) {
-  query_capture_t *cap;
-  VALUE res = TypedData_Make_Struct(klass, query_capture_t,
-                                    &query_capture_data_type, cap);
-  cap->tree = Qnil;
-  return res;
-}
-
-static query_capture_t *unwrap(VALUE self) {
-  query_capture_t *cap;
-  TypedData_Get_Struct(self, query_capture_t, &query_capture_data_type, cap);
-  return cap;
-}
+DATA_WRAP_WITH_TREE(query_capture, TSQueryCapture)
 
 VALUE new_query_capture(const TSQueryCapture *ptr, VALUE tree) {
   if (ptr == NULL) {

@@ -5,54 +5,7 @@ extern VALUE mTreeSitter;
 
 VALUE cNode;
 
-// Manual struct (not DATA_TYPE) because we need a VALUE tree field for GC.
-// The node might outlive the tree, so the node needs to track its tree.
-typedef struct {
-  TSNode data;
-  VALUE tree;
-} node_t;
-
-static void node_free(void *ptr) { xfree(ptr); }
-
-static size_t node_memsize(const void *ptr) {
-  node_t *node = (node_t *)ptr;
-  return sizeof(node);
-}
-
-static void node_mark(void *ptr) {
-  node_t *node = (node_t *)ptr;
-  rb_gc_mark_movable(node->tree);
-}
-
-static void node_compact(void *ptr) {
-  node_t *node = (node_t *)ptr;
-  node->tree = rb_gc_location(node->tree);
-}
-
-const rb_data_type_t node_data_type = {
-    .wrap_struct_name = "node",
-    .function =
-        {
-            .dmark = node_mark,
-            .dfree = node_free,
-            .dsize = node_memsize,
-            .dcompact = node_compact,
-        },
-    .flags = RUBY_TYPED_FREE_IMMEDIATELY,
-};
-
-static VALUE node_allocate(VALUE klass) {
-  node_t *node;
-  VALUE res = TypedData_Make_Struct(klass, node_t, &node_data_type, node);
-  node->tree = Qnil;
-  return res;
-}
-
-static node_t *unwrap(VALUE self) {
-  node_t *node;
-  TypedData_Get_Struct(self, node_t, &node_data_type, node);
-  return node;
-}
+DATA_WRAP_WITH_TREE(node, TSNode)
 
 // Return the Tree VALUE held by a Node, for cursors to capture.
 VALUE node_tree(VALUE self) { return (unwrap(self))->tree; }

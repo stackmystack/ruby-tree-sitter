@@ -4,58 +4,7 @@ extern VALUE mTreeSitter;
 
 VALUE cTreeCursor;
 
-// Holds a VALUE tree to keep the Tree alive for the lifetime of the cursor.
-typedef struct {
-  TSTreeCursor data;
-  VALUE tree;
-} tree_cursor_t;
-
-static void tree_cursor_free(void *ptr) {
-  tree_cursor_t *type = (tree_cursor_t *)ptr;
-  ts_tree_cursor_delete(&type->data);
-  xfree(ptr);
-}
-
-static size_t tree_cursor_memsize(const void *ptr) {
-  tree_cursor_t *type = (tree_cursor_t *)ptr;
-  return sizeof(type);
-}
-
-static void tree_cursor_mark(void *ptr) {
-  tree_cursor_t *cursor = (tree_cursor_t *)ptr;
-  rb_gc_mark_movable(cursor->tree);
-}
-
-static void tree_cursor_compact(void *ptr) {
-  tree_cursor_t *cursor = (tree_cursor_t *)ptr;
-  cursor->tree = rb_gc_location(cursor->tree);
-}
-
-const rb_data_type_t tree_cursor_data_type = {
-    .wrap_struct_name = "tree_cursor",
-    .function =
-        {
-            .dmark = tree_cursor_mark,
-            .dfree = tree_cursor_free,
-            .dsize = tree_cursor_memsize,
-            .dcompact = tree_cursor_compact,
-        },
-    .flags = RUBY_TYPED_FREE_IMMEDIATELY,
-};
-
-static VALUE tree_cursor_allocate(VALUE klass) {
-  tree_cursor_t *cursor;
-  VALUE res = TypedData_Make_Struct(klass, tree_cursor_t,
-                                    &tree_cursor_data_type, cursor);
-  cursor->tree = Qnil;
-  return res;
-}
-
-static tree_cursor_t *unwrap(VALUE self) {
-  tree_cursor_t *cursor;
-  TypedData_Get_Struct(self, tree_cursor_t, &tree_cursor_data_type, cursor);
-  return cursor;
-}
+DATA_WRAP_WITH_TREE_DELETE(tree_cursor, TSTreeCursor)
 
 TSTreeCursor value_to_tree_cursor(VALUE self) { return (unwrap(self))->data; }
 

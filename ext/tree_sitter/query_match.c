@@ -4,54 +4,7 @@ extern VALUE mTreeSitter;
 
 VALUE cQueryMatch;
 
-// Manual struct — holds a tree reference so captured nodes don't dangle.
-typedef struct {
-  TSQueryMatch data;
-  VALUE tree;
-} query_match_t;
-
-static void query_match_free(void *ptr) { xfree(ptr); }
-
-static size_t query_match_memsize(const void *ptr) {
-  query_match_t *match = (query_match_t *)ptr;
-  return sizeof(match);
-}
-
-static void query_match_mark(void *ptr) {
-  query_match_t *match = (query_match_t *)ptr;
-  rb_gc_mark_movable(match->tree);
-}
-
-static void query_match_compact(void *ptr) {
-  query_match_t *match = (query_match_t *)ptr;
-  match->tree = rb_gc_location(match->tree);
-}
-
-const rb_data_type_t query_match_data_type = {
-    .wrap_struct_name = "query_match",
-    .function =
-        {
-            .dmark = query_match_mark,
-            .dfree = query_match_free,
-            .dsize = query_match_memsize,
-            .dcompact = query_match_compact,
-        },
-    .flags = RUBY_TYPED_FREE_IMMEDIATELY,
-};
-
-static VALUE query_match_allocate(VALUE klass) {
-  query_match_t *match;
-  VALUE res = TypedData_Make_Struct(klass, query_match_t,
-                                    &query_match_data_type, match);
-  match->tree = Qnil;
-  return res;
-}
-
-static query_match_t *unwrap(VALUE self) {
-  query_match_t *match;
-  TypedData_Get_Struct(self, query_match_t, &query_match_data_type, match);
-  return match;
-}
+DATA_WRAP_WITH_TREE(query_match, TSQueryMatch)
 
 VALUE new_query_match(const TSQueryMatch *ptr, VALUE tree) {
   if (ptr == NULL) {
