@@ -76,6 +76,37 @@ describe 'pattern/capture/string' do
     assert_equal pattern.bytesize + 1, query.start_byte_for_pattern(1)
   end
 
+  it 'must return an Integer for pattern end byte' do
+    query = TreeSitter::Query.new(ruby, combined)
+    # end_byte is exclusive: end_byte_for_pattern(0) == start_byte_for_pattern(1)
+    assert_equal query.start_byte_for_pattern(1), query.end_byte_for_pattern(0)
+    assert_equal combined.bytesize, query.end_byte_for_pattern(1)
+  end
+
+  it 'must raise IndexError for out-of-range start/end byte' do
+    query = TreeSitter::Query.new(ruby, capture)
+    _ { query.start_byte_for_pattern(99) }.must_raise IndexError
+    _ { query.end_byte_for_pattern(99) }.must_raise IndexError
+  end
+
+  it 'must check if a pattern is rooted or non-local' do
+    # (method_parameters) is a single root node → rooted
+    query = TreeSitter::Query.new(ruby, pattern)
+    assert query.pattern_rooted?(0)
+    refute query.pattern_non_local?(0)
+  end
+
+  it 'must raise IndexError for out-of-range rooted/non-local checks' do
+    query = TreeSitter::Query.new(ruby, pattern)
+    _ { query.pattern_rooted?(99) }.must_raise IndexError
+    _ { query.pattern_non_local?(99) }.must_raise IndexError
+  end
+
+  it 'must return a Boolean for pattern_guaranteed_at_step?' do
+    query = TreeSitter::Query.new(ruby, capture)
+    assert_includes [true, false], query.pattern_guaranteed_at_step?(0)
+  end
+
   it 'must return an array of predicates for a pattern' do
     query = TreeSitter::Query.new(ruby, combined)
 
@@ -115,7 +146,6 @@ describe 'pattern/capture/string' do
     query.disable_pattern(0)
     assert_equal 1, query.pattern_count
   end
-  # TODO: pattern guaranteed at step
 end
 
 describe 'query_cursor' do

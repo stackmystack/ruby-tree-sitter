@@ -13,6 +13,18 @@
 - `Language#{subtypes,supertype}` returns all subtype names for the given
   supertype (a Symbol, matching what {#supertypes} returns).
 
+### Query
+
+- `Query#end_byte_for_pattern(idx)` returns the byte offset where the
+  given pattern ends in the query's source.
+- `Query#pattern_rooted?(idx)` returns whether the pattern has a single
+  root node.
+- `Query#pattern_non_local?(idx)` returns whether the pattern is
+  non-local (has multiple root nodes and disables certain range-based
+  optimizations).
+- `Query#pattern_guaranteed_at_step?(byte_offset)` now returns a boolean
+  (was an integer).
+
 ## Breaking Changes
 
 - Input enoding can be `UTF-16LE`, `UTF16LE`, or `UTF8`. `UTF16` is not longer accepted.

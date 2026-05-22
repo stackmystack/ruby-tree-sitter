@@ -171,11 +171,12 @@ static VALUE query_pattern_count(VALUE self) {
  *
  * @param byte_offset [Integer]
  *
- * @return [Integer]
+ * @return [Boolean]
  */
 static VALUE query_pattern_guaranteed_at_step(VALUE self, VALUE byte_offset) {
-  return UINT2NUM(
-      ts_query_is_pattern_guaranteed_at_step(SELF, NUM2UINT(byte_offset)));
+  return ts_query_is_pattern_guaranteed_at_step(SELF, NUM2UINT(byte_offset))
+             ? Qtrue
+             : Qfalse;
 }
 
 /**
@@ -238,6 +239,74 @@ static VALUE query_start_byte_for_pattern(VALUE self, VALUE pattern_index) {
 }
 
 /**
+ * Get the byte offset where the given pattern ends in the query's source.
+ *
+ * @raise [IndexError] if out of range.
+ *
+ * @param pattern_index [Integer]
+ *
+ * @return [Integer]
+ */
+static VALUE query_end_byte_for_pattern(VALUE self, VALUE pattern_index) {
+  const TSQuery *query = SELF;
+  uint32_t index = NUM2UINT(pattern_index);
+  uint32_t range = ts_query_pattern_count(query);
+
+  if (index >= range) {
+    rb_raise(rb_eIndexError, "Index %d out of range (len = %d)", index, range);
+  } else {
+    return UINT2NUM(ts_query_end_byte_for_pattern(SELF, index));
+  }
+}
+
+/**
+ * Check if the given pattern in the query has a single root node.
+ *
+ * @raise [IndexError] if out of range.
+ *
+ * @param pattern_index [Integer]
+ *
+ * @return [Boolean]
+ */
+static VALUE query_pattern_rooted(VALUE self, VALUE pattern_index) {
+  const TSQuery *query = SELF;
+  uint32_t index = NUM2UINT(pattern_index);
+  uint32_t range = ts_query_pattern_count(query);
+
+  if (index >= range) {
+    rb_raise(rb_eIndexError, "Index %d out of range (len = %d)", index, range);
+  } else {
+    return ts_query_is_pattern_rooted(query, index) ? Qtrue : Qfalse;
+  }
+}
+
+/**
+ * Check if the given pattern in the query is 'non local'.
+ *
+ * A non-local pattern has multiple root nodes and can match within a
+ * repeating sequence of nodes, as specified by the grammar. Non-local
+ * patterns disable certain optimizations that would otherwise be possible
+ * when executing a query on a specific range of a syntax tree.
+ *
+ * @raise [IndexError] if out of range.
+ *
+ * @param pattern_index [Integer]
+ *
+ * @return [Boolean]
+ */
+static VALUE query_pattern_non_local(VALUE self, VALUE pattern_index) {
+  const TSQuery *query = SELF;
+  uint32_t index = NUM2UINT(pattern_index);
+  uint32_t range = ts_query_pattern_count(query);
+
+  if (index >= range) {
+    rb_raise(rb_eIndexError, "Index %d out of range (len = %d)", index, range);
+  } else {
+    return ts_query_is_pattern_non_local(query, index) ? Qtrue : Qfalse;
+  }
+}
+
+/**
  * Get the number of string literals in the query.
  *
  * @return [Integer]
@@ -267,9 +336,6 @@ static VALUE query_string_value_for_id(VALUE self, VALUE id) {
   }
 }
 
-// FIXME: missing:
-// 1. ts_query_is_pattern_rooted
-// 1. ts_query_is_pattern_non_local
 void init_query(void) {
   cQuery = rb_define_class_under(mTreeSitter, "Query", rb_cObject);
 
@@ -290,6 +356,10 @@ void init_query(void) {
                    query_predicates_for_pattern, 1);
   rb_define_method(cQuery, "start_byte_for_pattern",
                    query_start_byte_for_pattern, 1);
+  rb_define_method(cQuery, "end_byte_for_pattern", query_end_byte_for_pattern,
+                   1);
+  rb_define_method(cQuery, "pattern_rooted?", query_pattern_rooted, 1);
+  rb_define_method(cQuery, "pattern_non_local?", query_pattern_non_local, 1);
   rb_define_method(cQuery, "string_count", query_string_count, 0);
   rb_define_method(cQuery, "string_value_for_id", query_string_value_for_id, 1);
 }
