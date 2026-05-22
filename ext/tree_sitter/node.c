@@ -320,6 +320,29 @@ static VALUE node_field_name_for_child(VALUE self, VALUE idx) {
 }
 
 /**
+ * Get the field name for node's named child at the given index, where zero
+ * represents the first named child. Returns nil if no field is found.
+ *
+ * @raise [IndexError] if out of range.
+ *
+ * @param idx [Integer]
+ *
+ * @return [String, nil]
+ */
+static VALUE node_field_name_for_named_child(VALUE self, VALUE idx) {
+  TSNode node = SELF;
+  uint32_t index = NUM2UINT(idx);
+  uint32_t range = ts_node_named_child_count(node);
+
+  if (index < range) {
+    return safe_str(ts_node_field_name_for_named_child(node, index));
+  } else {
+    rb_raise(rb_eIndexError, "Index %d is out of range (len = %d)", index,
+             range);
+  }
+}
+
+/**
  * Get the node's first child that extends beyond the given byte offset.
  *
  * @param byte [Integer]
@@ -601,6 +624,8 @@ void init_node(void) {
   rb_define_method(cNode, "end_byte", node_end_byte, 0);
   rb_define_method(cNode, "end_point", node_end_point, 0);
   rb_define_method(cNode, "field_name_for_child", node_field_name_for_child, 1);
+  rb_define_method(cNode, "field_name_for_named_child",
+                   node_field_name_for_named_child, 1);
   rb_define_method(cNode, "first_child_for_byte", node_first_child_for_byte, 1);
   rb_define_method(cNode, "first_named_child_for_byte",
                    node_first_named_child_for_byte, 1);

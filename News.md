@@ -13,6 +13,11 @@
 - `Language#{subtypes,supertype}` returns all subtype names for the given
   supertype (a Symbol, matching what {#supertypes} returns).
 
+### Node
+
+- `Node#field_name_for_named_child(idx)` returns the field name for the
+  named child at the given index (C API: `ts_node_field_name_for_named_child`).
+
 ### Query
 
 - `Query#end_byte_for_pattern(idx)` returns the byte offset where the
