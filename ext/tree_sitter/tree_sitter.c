@@ -26,6 +26,7 @@ void Init_tree_sitter() {
   init_input();
   init_input_edit();
   init_language();
+  init_language_metadata();
   init_logger();
   init_node();
   init_parser();

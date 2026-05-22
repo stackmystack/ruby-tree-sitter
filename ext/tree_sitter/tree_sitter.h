@@ -78,6 +78,7 @@ void init_encoding(void);
 void init_input(void);
 void init_input_edit(void);
 void init_language(void);
+void init_language_metadata(void);
 void init_logger(void);
 void init_node(void);
 void init_parser(void);
@@ -95,6 +96,7 @@ void init_tree(void);
 void init_tree_cursor(void);
 
 // Other helpers
+VALUE language_metadata_new(const TSLanguageMetadata *);
 const char *quantifier_str(TSQuantifier);
 const char *query_error_str(TSQueryError);
 

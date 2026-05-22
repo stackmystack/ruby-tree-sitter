@@ -84,4 +84,34 @@ describe 'language' do
   it 'must be of correct version' do
     assert ruby.version.between?(TreeSitter::MIN_COMPATIBLE_LANGUAGE_VERSION, TreeSitter::LANGUAGE_VERSION)
   end
+
+  describe 'metadata' do
+    it 'returns a LanguageMetadata object' do
+      meta = ruby.metadata
+      assert_instance_of TreeSitter::LanguageMetadata, meta
+    end
+
+    it 'has integer version fields' do
+      meta = ruby.metadata
+      assert_instance_of Integer, meta.major_version
+      assert_instance_of Integer, meta.minor_version
+      assert_instance_of Integer, meta.patch_version
+    end
+
+    it 'returns a SemVer string from to_s' do
+      meta = ruby.metadata
+      assert_match(/\A\d+\.\d+\.\d+\z/, meta.to_s)
+    end
+
+    it 'allows setting version fields' do
+      meta = TreeSitter::LanguageMetadata.new
+      meta.major_version = 1
+      meta.minor_version = 2
+      meta.patch_version = 3
+      assert_equal 1, meta.major_version
+      assert_equal 2, meta.minor_version
+      assert_equal 3, meta.patch_version
+      assert_equal '1.2.3', meta.to_s
+    end
+  end
 end
