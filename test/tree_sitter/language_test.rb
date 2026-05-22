@@ -74,6 +74,13 @@ describe 'language' do
     assert_equal TreeSitter::SymbolType::REGULAR, ruby.symbol_type(1)
   end
 
+  it 'must return the language name' do
+    name = ruby.name
+    assert_instance_of String, name
+    refute_empty name
+    assert_equal 'ruby', name
+  end
+
   it 'must be of correct version' do
     assert ruby.version.between?(TreeSitter::MIN_COMPATIBLE_LANGUAGE_VERSION, TreeSitter::LANGUAGE_VERSION)
   end

@@ -1,5 +1,12 @@
 # News
 
+## New APIs
+
+- `Language#name`.
+- `Language#metadata` returns a `LanguageMetadata` object with
+  `major_version`, `minor_version`, and `patch_version` fields.
+- `Language#name` returns the name of the parser, a string.
+
 ## Breaking Changes
 
 - Input enoding can be `UTF-16LE`, `UTF16LE`, or `UTF8`. `UTF16` is not longer accepted.

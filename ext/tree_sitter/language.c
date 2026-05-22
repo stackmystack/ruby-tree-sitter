@@ -209,6 +209,17 @@ static VALUE language_next_state(VALUE self, VALUE state, VALUE symbol) {
 }
 
 /**
+ * Get the name of this language.
+ *
+ * Returns +nil+ for older parsers that don't support this API.
+ *
+ * @return [String, nil]
+ */
+static VALUE language_name(VALUE self) {
+  return safe_str(ts_language_name(SELF));
+}
+
+/**
  * Get the number of distinct node types in the language.
  *
  * @return [Integer]
@@ -289,6 +300,7 @@ void init_language(void) {
                    1);
   rb_define_method(cLanguage, "field_name_for_id", language_field_name_for_id,
                    1);
+  rb_define_method(cLanguage, "name", language_name, 0);
   rb_define_method(cLanguage, "next_state", language_next_state, 2);
   rb_define_method(cLanguage, "symbol_count", language_symbol_count, 0);
   rb_define_method(cLanguage, "symbol_for_name", language_symbol_for_name, 2);
