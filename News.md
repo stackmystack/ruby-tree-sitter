@@ -1,5 +1,13 @@
 # News
 
+## Fixes
+
+- **Segfault prevention**: C wrapper structs are now zero-initialised
+  on allocation. Previously a failed `Query.new` could leave an
+  uninitialised pointer that caused a segfault when GC freed the
+  object. All value-type wrappers (`Point`, `Range`, `InputEdit`, …)
+  now have deterministic zero values instead of heap garbage.
+
 ## New APIs
 
 ### Language

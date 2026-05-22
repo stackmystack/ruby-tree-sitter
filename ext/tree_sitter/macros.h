@@ -89,7 +89,10 @@
 #define DATA_ALLOCATE(type)                                                    \
   static VALUE type##_allocate(VALUE klass) {                                  \
     type##_t *type;                                                            \
-    return TypedData_Make_Struct(klass, type##_t, &type##_data_type, type);    \
+    VALUE res =                                                                \
+        TypedData_Make_Struct(klass, type##_t, &type##_data_type, type);       \
+    *type = (type##_t){0};                                                     \
+    return res;                                                                \
   }
 
 #define DATA_UNWRAP(type)                                                      \

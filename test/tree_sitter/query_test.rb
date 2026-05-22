@@ -90,7 +90,7 @@ describe 'pattern/capture/string' do
   end
 
   it 'must check if a pattern is rooted or non-local' do
-    # (method_parameters) is a single root node → rooted
+    # (method_parameters) is a single root node -> rooted
     query = TreeSitter::Query.new(ruby, pattern)
     assert query.pattern_rooted?(0)
     refute query.pattern_non_local?(0)
