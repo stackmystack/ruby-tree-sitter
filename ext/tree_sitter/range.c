@@ -19,6 +19,24 @@ static VALUE range_inspect(VALUE self) {
                     range->data.start_byte, range->data.end_byte);
 }
 
+/**
+ * Edit a range to keep it in-sync with source code that has been edited.
+ *
+ * This function updates a range's start and end positions (both byte offsets
+ * and point coordinates) based on an edit operation. The range is mutated in
+ * place. This is useful for editing ranges without requiring a tree or node
+ * instance.
+ *
+ * @param input_edit [InputEdit]
+ *
+ * @return [nil]
+ */
+static VALUE range_edit(VALUE self, VALUE input_edit) {
+  TSInputEdit edit = value_to_input_edit(input_edit);
+  ts_range_edit(&SELF, &edit);
+  return Qnil;
+}
+
 void init_range(void) {
   cRange = rb_define_class_under(mTreeSitter, "Range", rb_cObject);
 
@@ -30,6 +48,7 @@ void init_range(void) {
   DECLARE_ACCESSOR(cRange, range, start_byte)
   DECLARE_ACCESSOR(cRange, range, end_byte)
 
+  rb_define_method(cRange, "edit", range_edit, 1);
   rb_define_method(cRange, "inspect", range_inspect, 0);
   rb_define_method(cRange, "to_s", range_inspect, 0);
 }

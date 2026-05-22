@@ -28,6 +28,10 @@
   via `parent` for iterating over a node's ancestors
   (C API: `ts_node_child_with_descendant`).
 
+### Point
+
+- `Point#edit`.
+
 ### Query
 
 - `Query#end_byte_for_pattern(idx)` returns the byte offset where the
@@ -39,6 +43,10 @@
   optimizations).
 - `Query#pattern_guaranteed_at_step?(byte_offset)` now returns a boolean
   (was an integer).
+
+## Range
+
+- `Range#edit`.
 
 ## Breaking Changes
 

@@ -312,19 +312,7 @@ describe 'edit' do
     old_end   = node.end_byte
 
     # Insert one space at the beginning of the document.
-    edit = TreeSitter::InputEdit.new
-    edit.start_byte = 0
-    edit.old_end_byte = 0
-    edit.new_end_byte = 1
-    edit.start_point = TreeSitter::Point.new
-    edit.start_point.row = 0
-    edit.start_point.column = 0
-    edit.old_end_point = TreeSitter::Point.new
-    edit.old_end_point.row = 0
-    edit.old_end_point.column = 0
-    edit.new_end_point = TreeSitter::Point.new
-    edit.new_end_point.row = 0
-    edit.new_end_point.column = 1
+    edit = make_edit(0, 0, 1, [0, 0], [0, 0], [0, 1])
 
     tree.edit(edit)
     node.edit(edit)
@@ -693,5 +681,109 @@ describe 'anonymous fields' do
     refute op.null?
   ensure
     TreeSitter.strict_field_access = true
+  end
+end
+
+# Helper: build a Point with known values, then assign.
+# Points are uninitialized on allocation; setters copy by value so the
+# object must be fully configured *before* assigning it to a parent struct.
+def make_point(row, col)
+  pt = TreeSitter::Point.new
+  pt.row = row
+  pt.column = col
+  pt
+end
+
+def make_edit(start_byte, old_end_byte, new_end_byte, sp, oep, nep) # rubocop:disable Metrics/ParameterLists,Naming/MethodParameterName
+  edit = TreeSitter::InputEdit.new
+  edit.start_byte = start_byte
+  edit.old_end_byte = old_end_byte
+  edit.new_end_byte = new_end_byte
+  edit.start_point = make_point(*sp)
+  edit.old_end_point = make_point(*oep)
+  edit.new_end_point = make_point(*nep)
+  edit
+end
+
+describe 'Point#edit' do
+  before do
+    # Insert 5 chars at byte 0 (row 0, col 0 → row 0, col 5).
+    # Replaces bytes [0,0) with [0,5).
+    @insert = make_edit(0, 0, 5, [0, 0], [0, 0], [0, 5])
+  end
+
+  it 'shifts a point and its byte offset forward after an insertion before it' do
+    pt = make_point(0, 10)
+    new_byte = pt.edit(10, @insert)
+
+    assert_equal 15, new_byte
+    assert_equal 0, pt.row
+    assert_equal 15, pt.column
+  end
+
+  it 'shifts a point and its byte offset backward after a deletion before it' do
+    # Replace bytes [2,5) with [2,2): delete 3 bytes.
+    del = make_edit(2, 5, 2, [0, 2], [0, 5], [0, 2])
+
+    pt = make_point(0, 10)
+    new_byte = pt.edit(10, del)
+
+    assert_equal 7, new_byte
+    assert_equal 0, pt.row
+    assert_equal 7, pt.column
+  end
+
+  it 'leaves a point unchanged when the edit is entirely after it' do
+    # Edit at byte 10, point at byte 2: point comes before the edit.
+    after_edit = make_edit(10, 10, 15, [0, 10], [0, 10], [0, 15])
+
+    pt = make_point(0, 2)
+    new_byte = pt.edit(2, after_edit)
+
+    assert_equal 2, new_byte
+    assert_equal 0, pt.row
+    assert_equal 2, pt.column
+  end
+end
+
+describe 'Range#edit' do
+  before do
+    # Insert 5 chars at byte 0.
+    @insert = make_edit(0, 0, 5, [0, 0], [0, 0], [0, 5])
+  end
+
+  def make_range(sb, eb, sp, ep)
+    r = TreeSitter::Range.new
+    r.start_byte = sb
+    r.end_byte = eb
+    r.start_point = make_point(*sp)
+    r.end_point = make_point(*ep)
+    r
+  end
+
+  it 'shifts a range forward after an insertion before it' do
+    r = make_range(10, 20, [0, 10], [0, 20])
+    r.edit(@insert)
+
+    assert_equal 15, r.start_byte
+    assert_equal 25, r.end_byte
+    assert_equal 0, r.start_point.row
+    assert_equal 15, r.start_point.column
+    assert_equal 0, r.end_point.row
+    assert_equal 25, r.end_point.column
+  end
+
+  it 'leaves a range unchanged when the edit is after it' do
+    r = make_range(0, 5, [0, 0], [0, 5])
+    after_edit = make_edit(10, 10, 15, [0, 10], [0, 10], [0, 15])
+    r.edit(after_edit)
+
+    assert_equal 0, r.start_byte
+    assert_equal 5, r.end_byte
+  end
+
+  it 'returns nil' do
+    r = TreeSitter::Range.new
+    assert_nil r.edit(@insert)
   end
 end
