@@ -238,6 +238,15 @@ static VALUE language_name(VALUE self) {
 }
 
 /**
+ * Get the number of valid states in this language.
+ *
+ * @return [Integer]
+ */
+static VALUE language_state_count(VALUE self) {
+  return UINT2NUM(ts_language_state_count(SELF));
+}
+
+/**
  * Get the number of distinct node types in the language.
  *
  * @return [Integer]
@@ -321,6 +330,7 @@ void init_language(void) {
   rb_define_method(cLanguage, "metadata", language_metadata, 0);
   rb_define_method(cLanguage, "name", language_name, 0);
   rb_define_method(cLanguage, "next_state", language_next_state, 2);
+  rb_define_method(cLanguage, "state_count", language_state_count, 0);
   rb_define_method(cLanguage, "symbol_count", language_symbol_count, 0);
   rb_define_method(cLanguage, "symbol_for_name", language_symbol_for_name, 2);
   rb_define_method(cLanguage, "symbol_name", language_symbol_name, 1);

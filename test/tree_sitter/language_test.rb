@@ -46,6 +46,10 @@ describe 'language' do
     _ { TreeSitter::Language.load('nada', ruby_path) }.must_raise TreeSitter::SymbolNotFoundError
   end
 
+  it 'must return state count' do
+    assert ruby.state_count.positive?
+  end
+
   it 'must return symbol count' do
     assert ruby.symbol_count.positive?
   end
