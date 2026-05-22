@@ -310,6 +310,65 @@ static VALUE language_version(VALUE self) {
   return UINT2NUM(ts_language_abi_version(SELF));
 }
 
+/**
+ * Get a list of all supertype names for the language.
+ *
+ * Supertypes are hidden node types defined in the grammar that can
+ * match any one of their subtypes.  For example, a grammar might define
+ * a supertype +_expression+ whose subtypes are +identifier+, +call+,
+ * +binary+, etc.  A query pattern that matches the supertype will match
+ * any of its subtypes.
+ *
+ * Each element is a type name as a Symbol, matching the convention of
+ * {Node#type}.
+ *
+ * @example
+ *   lang.supertypes # => [:_expression, :_statement, ...]
+ *
+ * @return [Array<Symbol>]
+ */
+static VALUE language_supertypes(VALUE self) {
+  TSLanguage *lang = SELF;
+  uint32_t length;
+  const TSSymbol *symbols = ts_language_supertypes(lang, &length);
+  VALUE res = rb_ary_new_capa(length);
+
+  for (uint32_t i = 0; i < length; i++) {
+    rb_ary_push(res, safe_symbol(ts_language_symbol_name(lang, symbols[i])));
+  }
+
+  return res;
+}
+
+/**
+ * Get a list of all subtype names for a given supertype.
+ *
+ * @example
+ *   lang.supertypes  # => [:_expression, :_statement]
+ *   lang.subtypes(:_expression)
+ *   # => [:identifier, :call, :binary, :unary, ...]
+ *
+ * @param supertype [Symbol] a supertype name (e.g. +:_expression+).
+ *
+ * @return [Array<Symbol>]
+ */
+static VALUE language_subtypes(VALUE self, VALUE supertype) {
+  TSLanguage *lang = SELF;
+  const char *name = rb_id2name(SYM2ID(supertype));
+  uint32_t len = (uint32_t)strlen(name);
+  TSSymbol sym = ts_language_symbol_for_name(lang, name, len, true);
+
+  uint32_t length;
+  const TSSymbol *symbols = ts_language_subtypes(lang, sym, &length);
+  VALUE res = rb_ary_new_capa(length);
+
+  for (uint32_t i = 0; i < length; i++) {
+    rb_ary_push(res, safe_symbol(ts_language_symbol_name(lang, symbols[i])));
+  }
+
+  return res;
+}
+
 void init_language(void) {
   cLanguage = rb_define_class_under(mTreeSitter, "Language", rb_cObject);
 
@@ -331,6 +390,8 @@ void init_language(void) {
   rb_define_method(cLanguage, "name", language_name, 0);
   rb_define_method(cLanguage, "next_state", language_next_state, 2);
   rb_define_method(cLanguage, "state_count", language_state_count, 0);
+  rb_define_method(cLanguage, "subtypes", language_subtypes, 1);
+  rb_define_method(cLanguage, "supertypes", language_supertypes, 0);
   rb_define_method(cLanguage, "symbol_count", language_symbol_count, 0);
   rb_define_method(cLanguage, "symbol_for_name", language_symbol_for_name, 2);
   rb_define_method(cLanguage, "symbol_name", language_symbol_name, 1);

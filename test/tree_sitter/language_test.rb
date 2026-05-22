@@ -89,6 +89,23 @@ describe 'language' do
     assert ruby.version.between?(TreeSitter::MIN_COMPATIBLE_LANGUAGE_VERSION, TreeSitter::LANGUAGE_VERSION)
   end
 
+  describe 'supertypes' do
+    it 'returns an Array of Symbol' do
+      supers = ruby.supertypes
+      assert_instance_of Array, supers
+      refute_empty supers
+      assert supers.all? { |s| s.is_a?(Symbol) }, 'all elements must be Symbols'
+    end
+  end
+
+  describe 'subtypes' do
+    it 'returns the known subtypes for the _simple_numeric supertype' do
+      subs = ruby.subtypes(:_simple_numeric)
+      assert_equal %i[complex float integer rational], subs.sort,
+                   '_simple_numeric must have these four subtypes'
+    end
+  end
+
   describe 'metadata' do
     it 'returns a LanguageMetadata object' do
       meta = ruby.metadata

@@ -8,6 +8,10 @@
   `major_version`, `minor_version`, and `patch_version` fields.
 - `Language#name` returns the name of the parser, a string.
 - `Language#state_count`.
+- `Language#supertypes` returns all supertype names for the language as
+  Symbols.
+- `Language#{subtypes,supertype}` returns all subtype names for the given
+  supertype (a Symbol, matching what {#supertypes} returns).
 
 ## Breaking Changes
 
