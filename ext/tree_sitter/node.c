@@ -150,11 +150,14 @@ static VALUE node_child(VALUE self, VALUE idx) {
  *
  * You can convert a field name to an id using {Language#field_id_for_name}.
  *
- * @return [Node]
+ * @return [Node, nil]
  */
 static VALUE node_child_by_field_id(VALUE self, VALUE field_id) {
-  return new_node_by_val(ts_node_child_by_field_id(SELF, NUM2UINT(field_id)),
-                         unwrap(self)->tree);
+  TSNode child = ts_node_child_by_field_id(SELF, NUM2UINT(field_id));
+  if (ts_node_is_null(child)) {
+    return Qnil;
+  }
+  return new_node_by_val(child, unwrap(self)->tree);
 }
 
 /**
@@ -227,12 +230,15 @@ static VALUE node_descendant_count(VALUE self) {
  * Get the smallest node within this node that spans the given range of byte
  * positions.
  *
- * @raise [IndexError] if out of range.
+ * Returns +nil+ if there is no node spanning the range (e.g. the range lies
+ * outside this node's extent).
+ *
+ * @raise [IndexError] if from > to.
  *
  * @param from [Integer]
  * @param to   [Integer]
  *
- * @return [Node]
+ * @return [Node, nil]
  */
 static VALUE node_descendant_for_byte_range(VALUE self, VALUE from, VALUE to) {
   uint32_t from_b = NUM2UINT(from);
@@ -240,11 +246,13 @@ static VALUE node_descendant_for_byte_range(VALUE self, VALUE from, VALUE to) {
 
   if (from_b > to_b) {
     rb_raise(rb_eIndexError, "From > To: %d > %d", from_b, to_b);
-  } else {
-    return new_node_by_val(
-        ts_node_descendant_for_byte_range(SELF, from_b, to_b),
-        unwrap(self)->tree);
   }
+
+  TSNode child = ts_node_descendant_for_byte_range(SELF, from_b, to_b);
+  if (ts_node_is_null(child)) {
+    return Qnil;
+  }
+  return new_node_by_val(child, unwrap(self)->tree);
 }
 
 /**
@@ -368,26 +376,35 @@ static VALUE node_field_name_for_named_child(VALUE self, VALUE idx) {
 /**
  * Get the node's first child that extends beyond the given byte offset.
  *
+ * Returns +nil+ when no child extends beyond the byte offset.
+ *
  * @param byte [Integer]
  *
- * @return [Node]
+ * @return [Node, nil]
  */
 static VALUE node_first_child_for_byte(VALUE self, VALUE byte) {
-  return new_node_by_val(ts_node_first_child_for_byte(SELF, NUM2UINT(byte)),
-                         unwrap(self)->tree);
+  TSNode child = ts_node_first_child_for_byte(SELF, NUM2UINT(byte));
+  if (ts_node_is_null(child)) {
+    return Qnil;
+  }
+  return new_node_by_val(child, unwrap(self)->tree);
 }
 
 /**
  * Get the node's first named child that extends beyond the given byte offset.
  *
+ * Returns +nil+ when no named child extends beyond the byte offset.
+ *
  * @param byte [Integer]
  *
- * @return [Node]
+ * @return [Node, nil]
  */
 static VALUE node_first_named_child_for_byte(VALUE self, VALUE byte) {
-  return new_node_by_val(
-      ts_node_first_named_child_for_byte(SELF, NUM2UINT(byte)),
-      unwrap(self)->tree);
+  TSNode child = ts_node_first_named_child_for_byte(SELF, NUM2UINT(byte));
+  if (ts_node_is_null(child)) {
+    return Qnil;
+  }
+  return new_node_by_val(child, unwrap(self)->tree);
 }
 
 /**
@@ -424,12 +441,15 @@ static VALUE node_language(VALUE self) {
  * Get the smallest *named* node within this node that spans the given range of
  * byte positions.
  *
- * @raise [IndexError] if out of range.
+ * Returns +nil+ if there is no named node spanning the range (e.g. the range
+ * lies outside this node's extent).
+ *
+ * @raise [IndexError] if from > to.
  *
  * @param from [Integer]
  * @param to   [Integer]
  *
- * @return [Node]
+ * @return [Node, nil]
  */
 static VALUE node_named_descendant_for_byte_range(VALUE self, VALUE from,
                                                   VALUE to) {
@@ -438,11 +458,13 @@ static VALUE node_named_descendant_for_byte_range(VALUE self, VALUE from,
 
   if (from_b > to_b) {
     rb_raise(rb_eIndexError, "From > To: %d > %d", from_b, to_b);
-  } else {
-    return new_node_by_val(
-        ts_node_named_descendant_for_byte_range(SELF, from_b, to_b),
-        unwrap(self)->tree);
   }
+
+  TSNode child = ts_node_named_descendant_for_byte_range(SELF, from_b, to_b);
+  if (ts_node_is_null(child)) {
+    return Qnil;
+  }
+  return new_node_by_val(child, unwrap(self)->tree);
 }
 
 /**
@@ -519,19 +541,31 @@ static VALUE node_named_child_count(VALUE self) {
 /**
  * Get the node's next *named* sibling.
  *
- * @return [Node]
+ * Returns +nil+ when there is no next named sibling.
+ *
+ * @return [Node, nil]
  */
 static VALUE node_next_named_sibling(VALUE self) {
-  return new_node_by_val(ts_node_next_named_sibling(SELF), unwrap(self)->tree);
+  TSNode sibling = ts_node_next_named_sibling(SELF);
+  if (ts_node_is_null(sibling)) {
+    return Qnil;
+  }
+  return new_node_by_val(sibling, unwrap(self)->tree);
 }
 
 /**
  * Get the node's next sibling.
  *
- * @return [Node]
+ * Returns +nil+ when there is no next sibling.
+ *
+ * @return [Node, nil]
  */
 static VALUE node_next_sibling(VALUE self) {
-  return new_node_by_val(ts_node_next_sibling(SELF), unwrap(self)->tree);
+  TSNode sibling = ts_node_next_sibling(SELF);
+  if (ts_node_is_null(sibling)) {
+    return Qnil;
+  }
+  return new_node_by_val(sibling, unwrap(self)->tree);
 }
 
 /**
@@ -546,28 +580,46 @@ static VALUE node_next_parse_state(VALUE self) {
 /**
  * Get the node's immediate parent.
  *
- * @return [Node]
+ * Returns +nil+ when called on the root node.
+ *
+ * @return [Node, nil]
  */
 static VALUE node_parent(VALUE self) {
-  return new_node_by_val(ts_node_parent(SELF), unwrap(self)->tree);
+  TSNode parent = ts_node_parent(SELF);
+  if (ts_node_is_null(parent)) {
+    return Qnil;
+  }
+  return new_node_by_val(parent, unwrap(self)->tree);
 }
 
 /**
  * Get the node's previous *named* sibling.
  *
- * @return [Node]
+ * Returns +nil+ when there is no previous named sibling.
+ *
+ * @return [Node, nil]
  */
 static VALUE node_prev_named_sibling(VALUE self) {
-  return new_node_by_val(ts_node_prev_named_sibling(SELF), unwrap(self)->tree);
+  TSNode sibling = ts_node_prev_named_sibling(SELF);
+  if (ts_node_is_null(sibling)) {
+    return Qnil;
+  }
+  return new_node_by_val(sibling, unwrap(self)->tree);
 }
 
 /**
  * Get the node's previous sibling.
  *
- * @return [Node]
+ * Returns +nil+ when there is no previous sibling.
+ *
+ * @return [Node, nil]
  */
 static VALUE node_prev_sibling(VALUE self) {
-  return new_node_by_val(ts_node_prev_sibling(SELF), unwrap(self)->tree);
+  TSNode sibling = ts_node_prev_sibling(SELF);
+  if (ts_node_is_null(sibling)) {
+    return Qnil;
+  }
+  return new_node_by_val(sibling, unwrap(self)->tree);
 }
 
 /**

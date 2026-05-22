@@ -119,16 +119,16 @@ describe 'predicates' do
 end
 
 describe 'parent' do
-  # NOTE: never call parent on root. It will segfault.
-  #
-  # tree-sitter does not provide a way to check if a node has a parent.
-
-  it 'must never be nil' do
+  it 'returns the parent of a non-root node' do
     refute_nil root.child(0).parent
   end
 
-  it 'must be root for its children' do
+  it 'returns the correct parent for a child' do
     assert_equal root, root.child(0).parent
+  end
+
+  it 'returns nil when called on the root node' do
+    assert_nil root.parent
   end
 end
 
@@ -271,15 +271,36 @@ end
 
 describe 'siblings' do
   before do
-    @child = root.child(0).child(0)
+    @first = root.child(0).child(0)   # `def` (anonymous, first child)
+    @last  = root.child(0).child(4)   # `end` (anonymous, last child)
   end
 
-  it 'must return proper next/previous siblings' do
-    assert_equal @child, @child.next_sibling.prev_sibling
+  it 'returns next/previous siblings' do
+    assert_equal @first, @first.next_sibling.prev_sibling
   end
 
-  it 'must return proper next/previous named siblings' do
-    assert_equal @child.parent.child(1), @child.next_named_sibling
+  it 'returns next/previous named siblings' do
+    assert_equal @first.parent.child(1), @first.next_named_sibling
+  end
+
+  it 'returns nil for prev_sibling at the first child' do
+    assert_nil @first.prev_sibling
+  end
+
+  it 'returns nil for next_sibling at the last child' do
+    assert_nil @last.next_sibling
+  end
+
+  it 'returns nil for prev_named_sibling when no named sibling precedes' do
+    # `def` is anonymous; `identifier` (child 1) is the first named child
+    first_named = root.child(0).child(1)
+    assert_nil first_named.prev_named_sibling
+  end
+
+  it 'returns nil for next_named_sibling when no named sibling follows' do
+    # `end` is anonymous; the last named child before `end` has no next named
+    last_named = root.child(0).child(3) # body_statement
+    assert_nil last_named.next_named_sibling
   end
 end
 
