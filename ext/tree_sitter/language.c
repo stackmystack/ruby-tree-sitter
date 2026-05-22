@@ -398,4 +398,10 @@ void init_language(void) {
   rb_define_method(cLanguage, "symbol_type", language_symbol_type, 1);
   rb_define_method(cLanguage, "version", language_version, 0);
   rb_define_method(cLanguage, "abi_version", language_version, 0);
+
+  /*
+   * Do not implement:
+   *
+   * - `ts_language_copy` / `ts_language_delete`: wasm-related.
+   */
 }
