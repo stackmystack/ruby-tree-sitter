@@ -35,6 +35,8 @@ void Init_tree_sitter() {
   init_query();
   init_query_capture();
   init_query_cursor();
+  init_query_cursor_options();
+  init_query_cursor_state();
   init_query_error();
   init_query_match();
   init_query_predicate_step();

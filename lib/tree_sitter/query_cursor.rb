@@ -23,5 +23,54 @@ module TreeSitter
       self.exec(query, node)
       QueryCaptures.new(self, query, src)
     end
+
+    # Iterate over matches with a progress callback that can cancel the query.
+    #
+    # Accepts either an explicit {QueryCursorOptions} object or a block.
+    # Any Ruby object that responds to +#call+ works: Proc, lambda, Method,
+    # or custom callable.
+    #
+    # @example with an explicit options object
+    #   opts = TreeSitter::QueryCursorOptions.new(->(state) { ... })
+    #   cursor.matches_with_options(query, node, src, opts).each do |match|
+    #     ...
+    #   end
+    #
+    # @example with a block
+    #   cursor.matches_with_options(query, node, src) do |state|
+    #     state.current_byte_offset < 10_000
+    #   end.each do |match|
+    #     ...
+    #   end
+    #
+    # @param query   [Query]
+    # @param node    [Node]
+    # @param src     [String] source document
+    # @param options [QueryCursorOptions, nil]
+    # @yieldparam state [QueryCursorState]
+    # @yieldreturn [Boolean] +true+ to cancel
+    # @return [QueryMatches]
+    def matches_with_options(query, node, src, options = nil, &block)
+      opts = options || QueryCursorOptions.new(block || raise(ArgumentError, 'callback required'))
+      _exec_with_options(query, node, opts)
+      QueryMatches.new(self, query, src, opts)
+    end
+
+    # Iterate over captures with a progress callback that can cancel the query.
+    #
+    # @see matches_with_options
+    #
+    # @param query   [Query]
+    # @param node    [Node]
+    # @param src     [String] source document
+    # @param options [QueryCursorOptions, nil]
+    # @yieldparam state [QueryCursorState]
+    # @yieldreturn [Boolean] +true+ to cancel
+    # @return [QueryCaptures]
+    def captures_with_options(query, node, src, options = nil, &block)
+      opts = options || QueryCursorOptions.new(block || raise(ArgumentError, 'callback required'))
+      _exec_with_options(query, node, opts)
+      QueryCaptures.new(self, query, src, opts)
+    end
   end
 end

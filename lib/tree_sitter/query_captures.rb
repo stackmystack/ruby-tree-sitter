@@ -5,10 +5,11 @@ module TreeSitter
   class QueryCaptures
     include Enumerable
 
-    def initialize(cursor, query, src)
+    def initialize(cursor, query, src, options = nil)
       @cursor = cursor
       @query = query
       @src = src
+      @options = options
     end
 
     # Iterator over captures.

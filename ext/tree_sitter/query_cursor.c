@@ -219,12 +219,81 @@ static VALUE query_cursor_set_point_range(VALUE self, VALUE from, VALUE to) {
              : Qfalse;
 }
 
+/**
+ * Set the byte range within which all matches must be fully contained.
+ *
+ * In contrast to {#set_byte_range}, this restricts the query cursor to only
+ * return matches where <em>all</em> nodes are <em>fully</em> contained within
+ * the given range. Both functions can be used together.
+ *
+ * @param from [Integer]
+ * @param to   [Integer]
+ *
+ * @return [Boolean]
+ */
+static VALUE query_cursor_set_containing_byte_range(VALUE self, VALUE from,
+                                                    VALUE to) {
+  return ts_query_cursor_set_containing_byte_range(SELF, NUM2UINT(from),
+                                                   NUM2UINT(to))
+             ? Qtrue
+             : Qfalse;
+}
+
+/**
+ * Set the point range within which all matches must be fully contained.
+ *
+ * In contrast to {#set_point_range}, this restricts the query cursor to only
+ * return matches where <em>all</em> nodes are <em>fully</em> contained within
+ * the given range. Both functions can be used together.
+ *
+ * @param from [Point]
+ * @param to   [Point]
+ *
+ * @return [Boolean]
+ */
+static VALUE query_cursor_set_containing_point_range(VALUE self, VALUE from,
+                                                     VALUE to) {
+  return ts_query_cursor_set_containing_point_range(SELF, value_to_point(from),
+                                                    value_to_point(to))
+             ? Qtrue
+             : Qfalse;
+}
+
+/**
+ * Start running a given query on a given node, with options.
+ *
+ * The options carry a progress callback ({QueryCursorOptions#initialize}).
+ * The callback receives a {QueryCursorState} and can return +true+ to
+ * cancel the query early.
+ *
+ * @example with an explicit options object
+ *   opts = TreeSitter::QueryCursorOptions.new(->(state) {
+ *     state.current_byte_offset > 10_000
+ *   })
+ *   cursor.exec_with_options(query, node, opts)
+ *
+ * @param query   [Query]
+ * @param node    [Node]
+ * @param options [QueryCursorOptions]
+ *
+ * @return [QueryCursor]
+ */
+static VALUE query_cursor_exec_with_options(VALUE self, VALUE query, VALUE node,
+                                            VALUE options) {
+  query_cursor_t *cursor = unwrap(self);
+  ts_query_cursor_exec_with_options(cursor->data, value_to_query(query),
+                                    value_to_node(node),
+                                    value_to_query_cursor_options(options));
+  cursor->tree = node_tree(node);
+  return self;
+}
+
 void init_query_cursor(void) {
   cQueryCursor = rb_define_class_under(mTreeSitter, "QueryCursor", rb_cObject);
 
   rb_define_alloc_func(cQueryCursor, query_cursor_allocate);
 
-  /* Class methods */
+  // Class methods
   rb_define_singleton_method(cQueryCursor, "exec", query_cursor_exec_static, 2);
 
   // Accessors
@@ -232,6 +301,8 @@ void init_query_cursor(void) {
 
   // Other
   rb_define_method(cQueryCursor, "exec", query_cursor_exec, 2);
+  rb_define_private_method(cQueryCursor, "_exec_with_options",
+                           query_cursor_exec_with_options, 3);
   rb_define_method(cQueryCursor, "exceed_match_limit?",
                    query_cursor_did_exceed_match_limit, 0);
   rb_define_method(cQueryCursor,
@@ -241,6 +312,10 @@ void init_query_cursor(void) {
   rb_define_method(cQueryCursor, "remove_match", query_cursor_remove_match, 1);
   rb_define_method(cQueryCursor, "set_byte_range", query_cursor_set_byte_range,
                    2);
+  rb_define_method(cQueryCursor, "set_containing_byte_range",
+                   query_cursor_set_containing_byte_range, 2);
+  rb_define_method(cQueryCursor, "set_containing_point_range",
+                   query_cursor_set_containing_point_range, 2);
   rb_define_method(cQueryCursor, "set_point_range",
                    query_cursor_set_point_range, 2);
 }
